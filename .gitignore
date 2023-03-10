@@ -1,0 +1,7 @@
+*.ipynb
+**/.ipynb_*
+**/images
+**.zip
+**/saved_model
+
+**.pyc

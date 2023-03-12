@@ -2,6 +2,8 @@ from picsellia import Client
 from utils.data import PreAnnotator
 import os
 
+api_token = os.environ["api_token"]
+
 if "host" not in os.environ:
     host = "https://app.picsellia.com"
 else:

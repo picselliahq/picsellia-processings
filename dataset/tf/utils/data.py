@@ -23,20 +23,14 @@ class PreAnnotator:
     """
     def __init__(self, 
             client: Client,
-            model_id: uuid4,
             model_version_id: str,
-            dataset_id: uuid4,
             dataset_version_id: uuid4) -> None:
                 
         self.client = client
-        self.dataset_object: DatasetVersion = self.client.get_dataset(
-            dataset_id
-        ).get_version(
+        self.dataset_object: DatasetVersion = self.client.get_dataset_version_by_id(
             dataset_version_id
         )
-        self.model_object: ModelVersion = self.client.get_model(
-            model_id
-        ).get_version(
+        self.model_object: ModelVersion = self.client.get_model_version_by_id(
             model_version_id
         )
 

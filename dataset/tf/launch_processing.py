@@ -9,14 +9,13 @@ os.environ['PICSELLIA_SDK_CUSTOM_LOGGING'] = "True"
 os.environ["PICSELLIA_SDK_DOWNLOAD_BAR_MODE"] = "2"
 os.environ["PICSELLIA_SDK_SECTION_HANDLER"] = "1"
 
-os.chdir('picsellia')
 from datetime import datetime
 from picsellia.types.enums import JobRunStatus
 import logging
 
 logging.getLogger('picsellia').setLevel(logging.INFO)
-
-command = "python3 main.py"
+os.chdir('tf')
+command = "python3 detect/main.py"
 
 if "host" not in os.environ:
     host = "https://app.picsellia.com"
@@ -112,8 +111,8 @@ while True:
         
         last_line = text
 
-        
-with open('{}-logs.json'.format(job_id), 'w') as f:
+logs_path = '{}-logs.json'.format(job_id) 
+with open(logs_path, 'w') as f:
     if buffer != []:
         for i, line in enumerate(buffer):
             logs[part]['logs'][str(job.line_nb+i)] = line
@@ -124,7 +123,7 @@ with open('{}-logs.json'.format(job_id), 'w') as f:
     }
     json.dump(logs, f) 
 job.send_logging(str(process.returncode), part, special='exit_code')
-job.store_logging_file('{}-logs.json'.format(job_id))
+job.store_logging_file(logs_path)
 
 if process.returncode == 0 or process.returncode == "0":
     job.update_job_run_with_status(JobRunStatus.SUCCEEDED)

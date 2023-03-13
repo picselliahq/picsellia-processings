@@ -14,12 +14,12 @@ RUN pip3 install -U setuptools
 
 ARG REBUILD_PICSELLIA
 # RUN pip3 install --no-cache-dir picsellia
-RUN python3 -m pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ picsellia
+RUN python3 -m pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ picsellia==6.4.2.2
 ENV PATH=$PATH:/usr/local/cuda/bin
 ENV LD_LIBRARY_PATH $LD_LIBRARY_PATH:/usr/local/cuda/lib:/usr/local/cuda/lib64
 COPY . /
 
 
-CMD ["/detect/launch_processing.py"]
+CMD ["/tf/detect/launch_processing.py"]
 ENTRYPOINT ["python3"]
-RUN chown -R 42420 /detect /utils 
+RUN chown -R 42420 /tf 

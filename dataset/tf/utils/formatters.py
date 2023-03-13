@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 from PIL import Image
-
+import cv2
 from picsellia.types.enums import InferenceType
 
 class AbstractFormatter(ABC):
@@ -29,12 +29,12 @@ class TensorflowFormatter(AbstractFormatter):
         self.image_width = image_width
 
     def format_output(self, raw_output: dict, model_type: InferenceType):
-        if model_type == InferenceType.ObjectDetection:
+        if model_type == InferenceType.OBJECT_DETECTION:
             return self.format_object_detection(raw_output)
-        elif model_type == InferenceType.Segmentation:
+        elif model_type == InferenceType.SEGMENTATION:
             return self.format_segmentation(raw_output)
-        elif model_type == InferenceType.Classification:
-            return self.format_classification(raw_output)
+        # elif model_type == InferenceType.CLASSIFICATION:
+        #     return self.format_classification(raw_output)
 
     def format_object_detection(self, raw_output):
         try:
@@ -62,18 +62,18 @@ class TensorflowFormatter(AbstractFormatter):
 
     def format_segmentation(self, raw_output):
         scores = (
-            raw_output.as_numpy("detection_scores")[0].astype(np.float).tolist()[:10]
+            raw_output["detection_scores"].numpy()[0].astype(np.float).tolist()[:10]
         )
         boxes = self._postprocess_boxes(
-            raw_output.as_numpy("detection_boxes")[0].astype(np.float).tolist()[:10]
-        )
+                raw_output["detection_boxes"].numpy()[0].astype(np.float).tolist()
+            )
         masks = self._postprocess_masks(
-            raw_output.as_numpy("detection_masks")[0].astype(np.float).tolist()[:10],
-            boxes,
-            mask_threshold=0.5,
+            detection_masks = raw_output["detection_masks"].numpy()[0].astype(np.float).tolist()[:10],
+            resized_detection_boxes=boxes,
+            mask_threshold=0.4,
         )
         classes = (
-            raw_output.as_numpy("detection_classes")[0].astype(np.float).tolist()[:10]
+            raw_output["detection_classes"].numpy()[0].astype(np.float).tolist()[:10]
         )
         response = {
             "detection_scores": scores,
@@ -106,12 +106,15 @@ class TensorflowFormatter(AbstractFormatter):
 
             # background_mask with all black=0
             mask = np.zeros((self.image_height, self.image_width))
-
+            print(resized_detection_boxes[idx])
             # Get normalised bbox coordinates
-            ymin, xmin, ymax, xmax = resized_detection_boxes[idx]
+            xmin, ymin, w, h = resized_detection_boxes[idx]
+
+            xmax = xmin + w 
+            ymax = ymin + h 
 
             # Define bbox height and width
-            bbox_height, bbox_width = ymax - ymin, xmax - xmin
+            bbox_height, bbox_width = h, w
 
             # Resize 'detection_mask' to bbox size
             bbox_mask = np.array(

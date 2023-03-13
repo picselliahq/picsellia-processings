@@ -3,6 +3,7 @@ from uuid import uuid4
 from picsellia.exceptions import ResourceNotFoundError, InsufficientResourcesError, PicselliaError
 from picsellia.types.enums import InferenceType
 from picsellia.sdk.model import ModelVersion
+from picsellia.sdk.asset import Asset
 from picsellia.sdk.dataset import DatasetVersion
 from picsellia.sdk.annotation import Annotation
 from picsellia.sdk.label import Label
@@ -23,14 +24,14 @@ class PreAnnotator:
     """
     def __init__(self, 
             client: Client,
-            model_version_id: str,
-            dataset_version_id: uuid4) -> None:
+            dataset_version_id: uuid4,
+            model_version_id: uuid4) -> None:
                 
         self.client = client
         self.dataset_object: DatasetVersion = self.client.get_dataset_version_by_id(
             dataset_version_id
         )
-        self.model_object: ModelVersion = self.client.get_model_version_by_id(
+        self.client.get_model_version_by_id(
             model_version_id
         )
 
@@ -137,16 +138,83 @@ class PreAnnotator:
         image = np.expand_dims(image, axis=0)
         return image
     
-    def _format_picsellia_shapes(self, width: int, height: int, predictions: np.array) -> Tuple[List, List, List]:
+    def _format_picsellia_rectangles(self, width: int, height: int, predictions: np.array) -> Tuple[List, List, List]:
         formatter = TensorflowFormatter(width, height)
         formated_output = formatter.format_object_detection(predictions)
         scores = formated_output["detection_scores"]
         boxes = formated_output["detection_boxes"]
         classes = formated_output["detection_classes"]
         return (scores, boxes, classes)
+    
+    def _format_picsellia_polygons(self, width: int, height: int, predictions: np.array) -> Tuple[List, List, List, List]:
+        formatter = TensorflowFormatter(width, height)
+        formated_output = formatter.format_segmentation(predictions)
+        scores = formated_output["detection_scores"]
+        boxes = formated_output["detection_boxes"]
+        classes = formated_output["detection_classes"]
+        masks = formated_output["detection_masks"]
+        return (scores, masks, boxes, classes)
+    
+    def _format_and_save_rectangles(self, asset: Asset, predictions: dict, confidence_treshold: float) -> None:
+        scores, boxes, classes = self._format_picsellia_rectangles(
+            width=asset.width,
+            height=asset.height,
+            predictions=predictions
+            )
+        #  Convert predictions to Picsellia format
+        rectangle_list = []
+        nb_box_limit = 100
+        if len(boxes) < nb_box_limit:
+            nb_box_limit = len(boxes)
+        if len(boxes) > 0:
+            annotation: Annotation = asset.create_annotation(duration=0.0)
+        else:
+            return
+        for i in range(nb_box_limit):
+            if scores[i] >= confidence_treshold:
+                try:
+                    label: Label = self.dataset_object.get_label(name=self.model_infos["labels"][str(int(classes[i]))])
+                    box = boxes[i]
+                    box.append(label)
+                    rectangle_list.append(tuple(box))
+                except ResourceNotFoundError as e:
+                    print(e)
+                    continue
+        if len(rectangle_list) > 0:
+            annotation.create_multiple_rectangles(rectangle_list)
+            logging.info(f"Asset: {asset.filename} pre-annotated.")
+
+    def _format_and_save_polygons(self, asset: Asset, predictions: dict, confidence_treshold: float) -> None:
+        scores, masks, _, classes = self._format_picsellia_polygons(
+            width=asset.width,
+            height=asset.height,
+            predictions=predictions
+            )
+        #  Convert predictions to Picsellia format
+        polygons_list = []
+        nb_polygons_limit = 100
+        if len(masks) < nb_polygons_limit:
+            nb_box_limit = len(masks)
+        if len(masks) > 0:
+            annotation: Annotation = asset.create_annotation(duration=0.0)
+        else:
+            return
+        for i in range(nb_box_limit):
+            if scores[i] >= confidence_treshold:
+                try:
+                    label: Label = self.dataset_object.get_label(name=self.model_infos["labels"][str(int(classes[i]))])
+                    polygons_list.append((masks[i], label))
+                except ResourceNotFoundError as e:
+                    print(e)
+                    continue
+        if len(polygons_list) > 0:
+            annotation.create_multiple_polygons(polygons_list)
+            logging.info(f"Asset: {asset.filename} pre-annotated.")
+
 
     def preannotate(self, confidence_treshold: float = 0.5):
-        batch_size = 50
+        dataset_size = self.dataset_object.sync()["size"]
+        batch_size = 50 if dataset_size > 50 else dataset_size
         total_batch_number = self.dataset_object.sync()["size"] // batch_size
         for batch_number in tqdm.tqdm(range(total_batch_number)):
             for asset in self.dataset_object.list_assets(limit=(batch_number+1)*batch_size, offset=batch_number*batch_size, page_size=batch_size):
@@ -155,34 +223,10 @@ class PreAnnotator:
                     predictions = self.model(image)  # Predict
                     if len(predictions) > 0:
                         #  Format the raw output 
-                        scores, boxes, classes = self._format_picsellia_shapes(
-                            width=asset.width,
-                            height=asset.height,
-                            predictions=predictions
-                            )
-                        #  Convert predictions to Picsellia format
-                        rectangle_list = []
-                        nb_box_limit = 4
-                        if len(boxes) < nb_box_limit:
-                            nb_box_limit = len(boxes)
-                        if len(boxes) > 0:
-                            annotation: Annotation = asset.create_annotation(duration=0.0)
-                        else:
-                            continue
-                                #  Add both the ground truth and predictions to the image in the evaluation dataset
-                        for i in range(nb_box_limit):
-                            if scores[i] >= confidence_treshold:
-                                try:
-                                    label: Label = self.dataset_object.get_label(name=self.model_infos["labels"][str(int(classes[i]))])
-                                    box = boxes[i]
-                                    box.append(label)
-                                    rectangle_list.append(tuple(box))
-                                except ResourceNotFoundError as e:
-                                    print(e)
-                                    continue
-                        if len(rectangle_list) > 0:
-                            annotation.create_multiple_rectangles(rectangle_list)
-                            logging.info(f"Asset: {asset.filename} pre-annotated.")
+                        if self.dataset_object.type == InferenceType.OBJECT_DETECTION:
+                            self._format_and_save_rectangles(asset, predictions)
+                        elif self.dataset_object.type == InferenceType.SEGMENTATION:
+                            self._format_and_save_polygons(asset, predictions, confidence_treshold)
 
                             
                     #  Fetch original annotation and shapes to overlay over predictions

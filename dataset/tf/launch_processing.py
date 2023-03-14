@@ -36,7 +36,7 @@ client = Client(
 )
 
 job = client.get_job_by_id(job_id)
-
+job.update_job_run_with_status(JobRunStatus.RUNNING)
 process = subprocess.Popen(shlex.split(command), stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 part = "--#--Start processing"
 replace_log = False

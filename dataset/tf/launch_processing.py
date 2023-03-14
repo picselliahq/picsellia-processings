@@ -15,7 +15,7 @@ import logging
 
 logging.getLogger('picsellia').setLevel(logging.INFO)
 os.chdir('tf')
-command = "python3 detect/main.py"
+command = "python3 main.py"
 
 if "host" not in os.environ:
     host = "https://app.picsellia.com"

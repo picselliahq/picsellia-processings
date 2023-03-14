@@ -11,7 +11,7 @@ from typing import List, Tuple
 import tqdm
 import zipfile
 import os
-from formatters import TensorflowFormatter
+from .formatters import TensorflowFormatter
 from PIL import Image
 import numpy as np 
 import requests

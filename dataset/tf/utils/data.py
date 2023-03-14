@@ -72,6 +72,9 @@ class PreAnnotator:
     
     # Utilities 
 
+    def _is_labelmap_starting_at_zero(self,) -> bool:
+        return '0' in self.model_infos["labels"].keys()
+    
     def _set_dataset_version_type(self, ) -> None:
         self.dataset_object.set_type(
             self.model_object.type
@@ -173,7 +176,11 @@ class PreAnnotator:
         for i in range(nb_box_limit):
             if scores[i] >= confidence_treshold:
                 try:
-                    label: Label = self.dataset_object.get_label(name=self.model_infos["labels"][str(int(classes[i]))])
+
+                    if self._is_labelmap_starting_at_zero():
+                        label: Label = self.dataset_object.get_label(name=self.model_infos["labels"][str(int(classes[i])-1)])
+                    else:
+                        label: Label = self.dataset_object.get_label(name=self.model_infos["labels"][str(int(classes[i]))])
                     box = boxes[i]
                     box.append(label)
                     rectangle_list.append(tuple(box))
@@ -202,7 +209,10 @@ class PreAnnotator:
         for i in range(nb_box_limit):
             if scores[i] >= confidence_treshold:
                 try:
-                    label: Label = self.dataset_object.get_label(name=self.model_infos["labels"][str(int(classes[i]))])
+                    if self._is_labelmap_starting_at_zero():
+                        label: Label = self.dataset_object.get_label(name=self.model_infos["labels"][str(int(classes[i])-1)])
+                    else:
+                        label: Label = self.dataset_object.get_label(name=self.model_infos["labels"][str(int(classes[i]))])
                     polygons_list.append((masks[i], label))
                 except ResourceNotFoundError as e:
                     print(e)

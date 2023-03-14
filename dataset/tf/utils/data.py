@@ -31,7 +31,7 @@ class PreAnnotator:
         self.dataset_object: DatasetVersion = self.client.get_dataset_version_by_id(
             dataset_version_id
         )
-        self.client.get_model_version_by_id(
+        self.model_object: ModelVersion = self.client.get_model_version_by_id(
             model_version_id
         )
 
@@ -158,7 +158,7 @@ class PreAnnotator:
         masks = formated_output["detection_masks"]
         return (scores, masks, boxes, classes)
     
-    def _format_and_save_rectangles(self, asset: Asset, predictions: dict, confidence_treshold: float) -> None:
+    def _format_and_save_rectangles(self, asset: Asset, predictions: dict, confidence_treshold: float = 0.5) -> None:
         scores, boxes, classes = self._format_picsellia_rectangles(
             width=asset.width,
             height=asset.height,

@@ -84,6 +84,13 @@ class TensorflowFormatter(AbstractFormatter):
 
         return response
 
+    def format_classification(self, raw_output):
+        output_name = self.output_names[0]
+        scores = [float(max(raw_output[output_name].numpy()[0]))],
+        classes = [int(np.argmax(raw_output[output_name].numpy()[0]))],
+
+        return (scores, classes)
+    
     def _postprocess_boxes(self, detection_boxes: list) -> list:
         return [
             [

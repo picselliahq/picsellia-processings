@@ -20,11 +20,12 @@ job = client.get_job_by_id(job_id)
 context = job.sync()["datasetversionprocessingjob"]
 model_version_id = context["model_version_id"]
 dataset_version_id = context["input_dataset_version_id"]
-
+parameters = context["parameters"]
 X = PreAnnotator(
     client=client, 
     model_version_id=model_version_id, # same
-    dataset_version_id=dataset_version_id # same
+    dataset_version_id=dataset_version_id, # same
+    parameters=parameters
 )
 X.setup_preannotation_job()
 X.preannotate()

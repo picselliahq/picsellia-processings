@@ -24,7 +24,8 @@ class PreAnnotator:
     def __init__(self, 
             client: Client,
             dataset_version_id: uuid4,
-            model_version_id: uuid4) -> None:
+            model_version_id: uuid4,
+            parameters: dict) -> None:
                 
         self.client = client
         self.dataset_object: DatasetVersion = self.client.get_dataset_version_by_id(
@@ -33,6 +34,7 @@ class PreAnnotator:
         self.model_object = self.client.get_model_version_by_id(
             model_version_id
         )
+        self.parameters = parameters
     # Coherence Checks 
 
     def _type_coherence_check(self) -> bool:
@@ -141,9 +143,9 @@ class PreAnnotator:
     #     return (scores, masks, boxes, classes)
     
     def _format_and_save_rectangles(self, asset: Asset, prediction: List, confidence_treshold: float = 0.4) -> None:
-        boxes = prediction.boxes.xyxyn.numpy()
-        scores = prediction.boxes.conf.numpy()
-        labels = prediction.boxes.cls.numpy().astype(np.int16)
+        boxes = prediction.boxes.xyxyn.cpu().numpy()
+        scores = prediction.boxes.conf.cpu().numpy()
+        labels = prediction.boxes.cls.cpu().numpy().astype(np.int16)
         #  Convert predictions to Picsellia format
 
 
@@ -208,10 +210,14 @@ class PreAnnotator:
 
     def preannotate(self, confidence_treshold: float = 0.5):
         dataset_size = self.dataset_object.sync()["size"]
-        batch_size = 4 if dataset_size > 4 else dataset_size
+        if not "batch_size" in self.parameters:
+            batch_size = 8
+        else:
+            batch_size = self.parameters["batch_size"]
+        batch_size = batch_size if dataset_size > batch_size else dataset_size
         total_batch_number = self.dataset_object.sync()["size"] // batch_size
         for batch_number in tqdm.tqdm(range(total_batch_number)):
-            assets = self.dataset_object.list_assets(limit=(batch_number+1)*batch_size, offset=batch_number*batch_size, page_size=batch_size)
+            assets = self.dataset_object.list_assets(limit=batch_size, offset=batch_number*batch_size)
             url_list = [asset.sync()["data"]["presigned_url"] for asset in assets]
             predictions = self.model(url_list)
             for asset, prediction in list(zip(assets, predictions)):

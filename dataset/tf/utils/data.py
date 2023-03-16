@@ -25,7 +25,8 @@ class PreAnnotator:
     def __init__(self, 
             client: Client,
             dataset_version_id: uuid4,
-            model_version_id: uuid4) -> None:
+            model_version_id: uuid4,
+            parameters: dict) -> None:
                 
         self.client = client
         self.dataset_object: DatasetVersion = self.client.get_dataset_version_by_id(
@@ -224,10 +225,14 @@ class PreAnnotator:
 
     def preannotate(self, confidence_treshold: float = 0.5):
         dataset_size = self.dataset_object.sync()["size"]
-        batch_size = 50 if dataset_size > 50 else dataset_size
+        if not "batch_size" in self.parameters:
+            batch_size = 8
+        else:
+            batch_size = self.parameters["batch_size"]
+        batch_size = batch_size if dataset_size > batch_size else dataset_size
         total_batch_number = self.dataset_object.sync()["size"] // batch_size
         for batch_number in tqdm.tqdm(range(total_batch_number)):
-            for asset in self.dataset_object.list_assets(limit=(batch_number+1)*batch_size, offset=batch_number*batch_size, page_size=batch_size):
+            for asset in self.dataset_object.list_assets(limit=batch_size, offset=batch_number*batch_size):
                 if len(asset.list_annotations()) == 0:
                     image = self._preprocess_image(asset)
                     predictions = self.model(image)  # Predict

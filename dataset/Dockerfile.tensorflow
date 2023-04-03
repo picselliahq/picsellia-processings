@@ -13,8 +13,7 @@ RUN python3.8 -m pip install --upgrade pip
 RUN pip3 install -U setuptools
 
 ARG REBUILD_PICSELLIA
-# RUN pip3 install --no-cache-dir picsellia
-RUN python3 -m pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ picsellia==6.4.2.2
+RUN pip3 install --no-cache-dir picsellia
 RUN python3 -m pip install picsellia-tf2
 RUN python3 -m pip install typing_extensions==4.4.0
 ENV PATH=$PATH:/usr/local/cuda/bin

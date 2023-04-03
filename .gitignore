@@ -8,3 +8,9 @@
 
 **.pt
 **.onnx
+*.png
+*.jpeg
+
+**.jpg 
+
+**.DS_Store

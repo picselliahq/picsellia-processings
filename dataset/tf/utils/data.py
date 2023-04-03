@@ -16,7 +16,7 @@ from PIL import Image
 import numpy as np 
 import requests
 import logging
-
+import tensorflow as tf
 
 class PreAnnotator:
     """ 
@@ -26,7 +26,7 @@ class PreAnnotator:
             client: Client,
             dataset_version_id: uuid4,
             model_version_id: uuid4,
-            parameters: dict) -> None:
+            parameters: dict=dict()) -> None:
                 
         self.client = client
         self.dataset_object: DatasetVersion = self.client.get_dataset_version_by_id(
@@ -35,6 +35,7 @@ class PreAnnotator:
         self.model_object: ModelVersion = self.client.get_model_version_by_id(
             model_version_id
         )
+        self.parameters = parameters
 
     # Coherence Checks 
 
@@ -113,9 +114,20 @@ class PreAnnotator:
 
     def _load_tensorflow_saved_model(self,):
         try:
-            from tensorflow import saved_model
-            self.model = saved_model.load(self.model_weights_path)
+            # from tensorflow import saved_model
+            # self.model = saved_model.load(self.model_weights_path)
+            # logging.info("Model loaded in memory.")
+            self.model = tf.saved_model.load(self.model_weights_path)
             logging.info("Model loaded in memory.")
+            # self.model = self.base_model.signatures[tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY]
+            try:
+                self.model = self.model.signatures[tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY]
+                self.input_width, self.input_height = self.model.inputs[0].shape[1], self.model.inputs[0].shape[2]
+                self.ouput_names = list(self.model.structured_outputs.keys())
+            except Exception as e:
+                print(e)
+                self.input_width, self.input_height = None, None
+                self.ouput_names = None
         except Exception as e:
             raise PicselliaError(f"Impossible to load saved model located at: {self.model_weights_path}")
         
@@ -138,12 +150,18 @@ class PreAnnotator:
     
     def _preprocess_image(self, asset: str) -> np.array:
         image = Image.open(requests.get(asset.sync()["data"]["presigned_url"], stream=True).raw)
+        if self.input_width != None and self.input_height != None:
+            image = image.resize((self.input_width, self.input_height))
+            if image.mode != "RGB":
+                image = image.convert("RGB")
         image = np.asarray(image)
         image = np.expand_dims(image, axis=0)
+        if self.input_width != None and self.input_height != None:
+            image = tf.convert_to_tensor(image, dtype=tf.float32)
         return image
     
     def _format_picsellia_rectangles(self, width: int, height: int, predictions: np.array) -> Tuple[List, List, List]:
-        formatter = TensorflowFormatter(width, height)
+        formatter = TensorflowFormatter(width, height, self.ouput_names)
         formated_output = formatter.format_object_detection(predictions)
         scores = formated_output["detection_scores"]
         boxes = formated_output["detection_boxes"]
@@ -151,7 +169,7 @@ class PreAnnotator:
         return (scores, boxes, classes)
     
     def _format_picsellia_polygons(self, width: int, height: int, predictions: np.array) -> Tuple[List, List, List, List]:
-        formatter = TensorflowFormatter(width, height)
+        formatter = TensorflowFormatter(width, height, self.ouput_names)
         formated_output = formatter.format_segmentation(predictions)
         scores = formated_output["detection_scores"]
         boxes = formated_output["detection_boxes"]
@@ -235,7 +253,13 @@ class PreAnnotator:
             for asset in self.dataset_object.list_assets(limit=batch_size, offset=batch_number*batch_size):
                 if len(asset.list_annotations()) == 0:
                     image = self._preprocess_image(asset)
-                    predictions = self.model(image)  # Predict
+                    try:
+                        predictions = self.model(image)  # Predict
+                    except Exception as e:
+                        print(e)
+                        self.model = tf.saved_model.load(self.model_weights_path)
+                        # self.model = self.model.signatures[tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY]
+                        predictions = self.model(image)
                     if len(predictions) > 0:
                         #  Format the raw output 
                         if self.dataset_object.type == InferenceType.OBJECT_DETECTION:

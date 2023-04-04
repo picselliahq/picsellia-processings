@@ -1,5 +1,5 @@
 from picsellia import Client
-from utils.data import Evaluator
+from utils.data_v8 import PreAnnotator
 import os
 
 api_token = os.environ["api_token"]
@@ -18,15 +18,12 @@ client = Client(
 job = client.get_job_by_id(job_id)
 
 context = job.sync()["datasetversionprocessingjob"]
-experiment_id = context["experiment_id"]
-dataset_version_id = context["input_dataset_version_id"]
 model_version_id = context["model_version_id"]
+dataset_version_id = context["input_dataset_version_id"]
 parameters = context["parameters"]
-
-X = Evaluator(
+X = PreAnnotator(
     client=client, 
-    experiment_id=experiment_id, # same
-    model_version_id=model_version_id,
+    model_version_id=model_version_id, # same
     dataset_version_id=dataset_version_id, # same
     parameters=parameters
 )

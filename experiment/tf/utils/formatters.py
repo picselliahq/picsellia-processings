@@ -1,10 +1,11 @@
 from abc import ABC, abstractmethod
-
+from typing import Tuple
 import numpy as np
 from PIL import Image
 import cv2
 from picsellia.types.enums import InferenceType
-
+from tensorflow.python.ops.numpy_ops import np_config
+np_config.enable_numpy_behavior()
 class AbstractFormatter(ABC):
     @abstractmethod
     def format_output(self, raw_output, model_type):
@@ -24,9 +25,10 @@ class AbstractFormatter(ABC):
 
 
 class TensorflowFormatter(AbstractFormatter):
-    def __init__(self, image_width, image_height):
+    def __init__(self, image_width, image_height, output_names):
         self.image_height = image_height
         self.image_width = image_width
+        self.output_names = output_names
 
     def format_output(self, raw_output: dict, model_type: InferenceType):
         if model_type == InferenceType.OBJECT_DETECTION:
@@ -47,12 +49,9 @@ class TensorflowFormatter(AbstractFormatter):
             classes = (
                 raw_output["detection_classes"].numpy()[0].astype(np.float).tolist()
             )
-        except Exception:
-            scores = raw_output["output_1"].numpy()[0].astype(np.float).tolist()
-            boxes = self._postprocess_boxes(
-                raw_output.as_numpy("output_0")[0].astype(np.float).tolist()
-            )
-            classes = raw_output["output_2"].numpy()[0].astype(np.int16).tolist()
+        except KeyError:
+            boxes, scores, classes = self._guess_output_names(raw_output=raw_output)
+            boxes = self._postprocess_boxes(boxes)
         response = {
             "detection_scores": scores,
             "detection_boxes": boxes,
@@ -60,6 +59,29 @@ class TensorflowFormatter(AbstractFormatter):
         }
         return response
 
+    def _guess_output_names(self, raw_output) -> Tuple[list, list, list]:
+        boxes, scores, classes = [], [], []
+        possible_choices = ["bbox", "classes", "scores", "num_detections"]
+        for output_name in self.output_names:
+            unknown_layer = raw_output[output_name]
+            if len(unknown_layer.shape) == 3:
+                assert "bbox" in possible_choices
+                boxes = unknown_layer[0].astype(np.float).tolist()
+                possible_choices.remove("bbox")
+            elif len(unknown_layer.shape) == 1:
+                assert "num_detections" in possible_choices
+                possible_choices.remove("num_detections")
+            elif unknown_layer.dtype == np.float32:
+                assert "scores" in possible_choices
+                scores = unknown_layer[0].astype(np.float).tolist()
+                possible_choices.remove("scores")
+            else:
+                assert "classes" in possible_choices
+                classes = unknown_layer[0].astype(np.int16).tolist()
+                possible_choices.remove("classes")
+        assert len(possible_choices) == 0
+        return (boxes, scores, classes)
+    
     def format_segmentation(self, raw_output):
         scores = (
             raw_output["detection_scores"].numpy()[0].astype(np.float).tolist()[:10]

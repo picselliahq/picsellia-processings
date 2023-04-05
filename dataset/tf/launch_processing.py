@@ -14,7 +14,7 @@ from picsellia.types.enums import JobRunStatus
 import logging
 
 logging.getLogger('picsellia').setLevel(logging.INFO)
-os.chdir('tf')
+os.chdir('picsellia')
 command = "python3 main.py"
 
 if "host" not in os.environ:

@@ -1,5 +1,5 @@
 from picsellia import Client
-from utils.data import PreAnnotator
+from utils.annotator import PreAnnotator
 import os
 
 api_token = os.environ["api_token"]
@@ -17,7 +17,7 @@ client = Client(
 
 job = client.get_job_by_id(job_id)
 
-context = job.sync()["datasetversionprocessingjob"]
+context = job.sync()["dataset_version_processing_job"]
 model_version_id = context["model_version_id"]
 dataset_version_id = context["input_dataset_version_id"]
 parameters = context["parameters"]

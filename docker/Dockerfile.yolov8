@@ -14,7 +14,6 @@ RUN python3.10 -m pip install -U setuptools
 
 ARG REBUILD_ALL
 RUN python3.10 -m pip install ultralytics==8.0.48
-RUN pip3 install --no-cache-dir picsellia
 
 ARG REBUILD_PICSELLIA
 RUN python3.10 -m pip install picsellia --upgrade

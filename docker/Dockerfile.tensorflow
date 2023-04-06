@@ -12,8 +12,9 @@ RUN apt-get update && \
 RUN python3.8 -m pip install --upgrade pip
 RUN pip3 install -U setuptools
 
-ARG REBUILD_PICSELLIA
 RUN python3 -m pip install picsellia-tf2
+ARG REBUILD_PICSELLIA
+
 RUN pip3 install --no-cache-dir picsellia
 RUN python3 -m pip install typing_extensions==4.4.0
 

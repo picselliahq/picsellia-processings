@@ -43,7 +43,7 @@ def increment_bboxes_list(annotation, image_width, image_height, bboxes_list):
          
 def increment_polygons_list(annotation, polygons_list):
     if len(annotation['segmentation'])>0:
-        polygons_list.append(annotation['segmentation'])
+        polygons_list.append([(annotation['segmentation'][0][i], annotation['segmentation'][0][i+1]) for i in range(0, len(annotation['segmentation'][0]), 2)])
     return polygons_list
         
 def get_annotations(coco_annotations, image_width, image_height):

@@ -14,3 +14,8 @@
 **.jpg 
 
 **.DS_Store
+
+dataset/data_augmentations/annotations
+dataset/data_augmentations/data
+dataset/data_augmentations/augmented_data
+dataset/data_augmentations/test.ipynb

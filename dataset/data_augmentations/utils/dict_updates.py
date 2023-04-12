@@ -22,24 +22,34 @@ def read_img(filepath):
     return img
 
 def correct_bboxes(box, image_width, image_height):
-    if box[0] < 0 :
-        box[0] = 0
-    if box[1] < 0 :
-        box[1] = 0
-    if box[0]+box[2] > image_width :
-        box[2] -= image_width-(box[0]+box[2])
-    if box[1]+box[3] > image_height :
-        box[3] -= image_height-(box[1]+box[3])
-    return box
+    if box[2] > 0 and box[3] > 0 :
+        if box[0] < 0 :
+            box[0] = 0
+        if box[1] < 0 :
+            box[1] = 0
+        if box[0]+box[2] > image_width :
+            box[2] -= image_width-(box[0]+box[2])
+        if box[1]+box[3] > image_height :
+            box[3] -= image_height-(box[1]+box[3])
+        return box
+    else :
+        return None
         
 def increment_labels_list(annotation, labels_list):
     labels_list.append(annotation['category_id'])
+    return labels_list
 
 def increment_bboxes_list(annotation, image_width, image_height, bboxes_list):
+    incremented = True
     if len(annotation['bbox'])>0 :
         box = [annotation['bbox'][0], annotation['bbox'][1], annotation['bbox'][2], annotation['bbox'][3]]
-        bboxes_list.append(correct_bboxes(box, image_width, image_height))
-    return bboxes_list
+        corrected_box = correct_bboxes(box, image_width, image_height)
+        if corrected_box is not None :
+            bboxes_list.append(corrected_box)
+        else :
+            incremented = False
+    return bboxes_list, incremented
+
          
 def increment_polygons_list(annotation, polygons_list):
     if len(annotation['segmentation'])>0:
@@ -52,9 +62,10 @@ def get_annotations(coco_annotations, image_width, image_height):
     bboxes = []
     polygons = []
     for ann in coco_annotations:
-        increment_labels_list(ann, labels)
-        increment_bboxes_list(ann, image_width, image_height, bboxes)
-        increment_polygons_list(ann, polygons)
+        bboxes, incremented = increment_bboxes_list(ann, image_width, image_height, bboxes)
+        if incremented is True :
+            labels = increment_labels_list(ann, labels)
+        polygons = increment_polygons_list(ann, polygons)
     return labels, bboxes, polygons
 
 def save_augmented_image(augmented_image, augmented_asset_filename, augmented_dataset_path):
@@ -79,10 +90,16 @@ def save_annotations_in_annotations_dict(asset, img_id, current_annot_id, annota
     for num_annot in range(len(asset['labels'])):
             
             dict_annot = {}
-            dict_annot['segmentation'] = asset['keypoints']
+            if len(asset['keypoints']) > 0 :
+                dict_annot['segmentation'] = asset['keypoints'][num_annot]
+            else : 
+                dict_annot['segmentation'] = []
             dict_annot['iscrowd'] = 0
             dict_annot['image_id'] = img_id
-            dict_annot['bbox'] = list(map(int, asset['bboxes']))
+            if len(asset['bboxes']) > 0 :
+                dict_annot['bbox'] = list(map(int, asset['bboxes'][num_annot]))
+            else :
+                dict_annot['bbox'] = []
             dict_annot['category_id'] = int(asset['labels'][num_annot])
             dict_annot['id'] = current_annot_id
             

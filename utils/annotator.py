@@ -57,6 +57,7 @@ class PreAnnotator:
 
         intersecting_labels = set(self.model_labels_name).intersection(self.dataset_labels_name)
         logging.info(f"Pre-annotation Job will only run on classes: {list(intersecting_labels)}")
+        self.labels_to_detect = list(intersecting_labels)
         return len(intersecting_labels) > 0
 
     # Sanity check
@@ -107,6 +108,7 @@ class PreAnnotator:
                 name=label
             )
         self.dataset_labels_name = [label.name for label in self.dataset_object.list_labels()]
+        self.labels_to_detect = self.dataset_labels_name
         logging.info(f"Labels :{self.dataset_labels_name} created.")
 
     def _download_model_weights(self, ):
@@ -207,14 +209,22 @@ class PreAnnotator:
                             coord_positive = False 
                     
                     if coord_positive:
+                        label = None
                         if self._is_labelmap_starting_at_zero():
-                            label: Label = self.dataset_object.get_label(
-                                name=self.model_infos["labels"][str(int(classes[i]) - 1)])
+                            label_name = self.model_infos["labels"][str(int(classes[i]) - 1)]
+                            if label_name in self.labels_to_detect:
+                                label: Label = self.dataset_object.get_label(
+                                    name=label_name
+                                )
                         else:
-                            label: Label = self.dataset_object.get_label(
-                                name=self.model_infos["labels"][str(int(classes[i]))])
-                        box.append(label)
-                        rectangle_list.append(tuple(box))
+                            label_name = self.model_infos["labels"][str(int(classes[i]))]
+                            if label_name in self.labels_to_detect:
+                                label: Label = self.dataset_object.get_label(
+                                    name=label_name
+                                )
+                        if label is not None:
+                            box.append(label)
+                            rectangle_list.append(tuple(box))
                 except ResourceNotFoundError as e:
                     print(e)
                     continue

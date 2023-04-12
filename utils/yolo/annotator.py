@@ -49,6 +49,7 @@ class PreAnnotator:
 
         intersecting_labels = set(self.model_labels_name).intersection(self.dataset_labels_name)
         logging.info(f"Pre-annotation Job will only run on classes: {list(intersecting_labels)}")
+        self.labels_to_detect = list(intersecting_labels)
         return len(intersecting_labels) > 0
 
     # Sanity check 
@@ -98,6 +99,7 @@ class PreAnnotator:
                 name=label
             )
         self.dataset_labels_name = [label.name for label in self.dataset_object.list_labels()]
+        self.labels_to_detect = self.dataset_labels_name
         logging.info(f"Labels :{self.dataset_labels_name} created.")
 
     def _download_model_weights(self,):
@@ -160,16 +162,17 @@ class PreAnnotator:
         for i in range(nb_box_limit):
             if scores[i] >= confidence_treshold:
                 try:
-                    label: Label = self.dataset_object.get_label(name=prediction.names[labels[i]])
-                    e = boxes[i].tolist()
-                    box = [
-                        int(e[0] * asset.width),
-                        int(e[1] * asset.height),
-                        int((e[2] - e[0]) * asset.width),
-                        int((e[3] - e[1]) * asset.height),
-                    ]
-                    box.append(label)
-                    rectangle_list.append(tuple(box))
+                    if prediction.names[labels[i]] in self.labels_to_detect:
+                        label: Label = self.dataset_object.get_label(name=prediction.names[labels[i]])
+                        e = boxes[i].tolist()
+                        box = [
+                            int(e[0] * asset.width),
+                            int(e[1] * asset.height),
+                            int((e[2] - e[0]) * asset.width),
+                            int((e[3] - e[1]) * asset.height),
+                        ]
+                        box.append(label)
+                        rectangle_list.append(tuple(box))
                 except ResourceNotFoundError as e:
                     print(e)
                     continue

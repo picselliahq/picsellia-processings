@@ -200,16 +200,21 @@ class PreAnnotator:
         for i in range(nb_box_limit):
             if scores[i] >= confidence_treshold:
                 try:
-
-                    if self._is_labelmap_starting_at_zero():
-                        label: Label = self.dataset_object.get_label(
-                            name=self.model_infos["labels"][str(int(classes[i]) - 1)])
-                    else:
-                        label: Label = self.dataset_object.get_label(
-                            name=self.model_infos["labels"][str(int(classes[i]))])
+                    coord_positive = True
                     box = boxes[i]
-                    box.append(label)
-                    rectangle_list.append(tuple(box))
+                    for coord in box:
+                        if coord < 0:
+                            coord_positive = False 
+                    
+                    if coord_positive:
+                        if self._is_labelmap_starting_at_zero():
+                            label: Label = self.dataset_object.get_label(
+                                name=self.model_infos["labels"][str(int(classes[i]) - 1)])
+                        else:
+                            label: Label = self.dataset_object.get_label(
+                                name=self.model_infos["labels"][str(int(classes[i]))])
+                        box.append(label)
+                        rectangle_list.append(tuple(box))
                 except ResourceNotFoundError as e:
                     print(e)
                     continue

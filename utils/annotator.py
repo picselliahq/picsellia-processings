@@ -154,6 +154,7 @@ class PreAnnotator:
 
     def _preprocess_image(self, asset: str) -> np.array:
         image = Image.open(requests.get(asset.sync()["data"]["presigned_url"], stream=True).raw)
+        image, width, height = self.get_image_shape_with_exif_transpose(image)
         if self.input_width != None and self.input_height != None:
             image = image.resize((self.input_width, self.input_height))
             if image.mode != "RGB":
@@ -162,7 +163,7 @@ class PreAnnotator:
         image = np.expand_dims(image, axis=0)
         if self.input_width != None and self.input_height != None:
             image = tf.convert_to_tensor(image, dtype=tf.float32)
-        return image
+        return image, width, height
 
     def _format_picsellia_rectangles(self, width: int, height: int, predictions: np.array) -> Tuple[List, List, List]:
         formatter = TensorflowFormatter(width, height, self.ouput_names)
@@ -182,6 +183,36 @@ class PreAnnotator:
         masks = formated_output["detection_masks"]
         return (scores, masks, boxes, classes)
 
+    def get_image_shape_with_exif_transpose(self, image: Image):
+        """
+            This method reads exif tags of an image and invert width and height if needed.
+            Orientation flags that need inversion are : TRANSPOSE, ROTATE_90, TRANSVERSE and ROTATE_270
+
+        Args:
+            image: PIL Image to read
+
+        Returns:
+            width and height of image
+        """
+        exif = image.getexif()
+        orientation = exif.get(0x0112)
+
+        # Orientation when height and width are inverted :
+        # 5: Image.Transpose.TRANSPOSE
+        # 6: Image.Transpose.ROTATE_270
+        # 7: Image.Transpose.TRANSVERSE
+        # 8: Image.Transpose.ROTATE_90
+        if orientation == 3:
+            image=image.rotate(180, expand=True)
+        elif orientation == 6:
+            image=image.rotate(270, expand=True)
+        elif orientation == 8:
+            image=image.rotate(90, expand=True)
+        if orientation in [5, 6, 7, 8]:
+            return image, image.height, image.width
+        else:
+            return image, image.width, image.height
+    
     def _format_and_save_rectangles(self, asset: Asset, predictions: dict, confidence_treshold: float = 0.5) -> None:
         scores, boxes, classes = self._format_picsellia_rectangles(
             width=asset.width,
@@ -265,7 +296,7 @@ class PreAnnotator:
         for batch_number in tqdm.tqdm(range(total_batch_number)):
             for asset in self.dataset_object.list_assets(limit=batch_size, offset=batch_number * batch_size):
                 if len(asset.list_annotations()) == 0:
-                    image = self._preprocess_image(asset)
+                    image, width, height = self._preprocess_image(asset)
                     try:
                         predictions = self.model(image)  # Predict
                     except Exception as e:

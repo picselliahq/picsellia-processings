@@ -27,12 +27,18 @@ if 'api_token' not in os.environ:
 if 'job_id' not in os.environ:
     raise RuntimeError("No job_id found in env. variables")
 
+if 'organization_id' not in os.environ:
+    organization_id = None
+else:
+    organization_id = os.environ["organization_id"]
+
 api_token = os.environ["api_token"]
 job_id = os.environ["job_id"]
 
 client = Client(
     api_token=api_token,
-    host=host
+    host=host,
+    organization_id=organization_id
 )
 
 job = client.get_job_by_id(job_id)

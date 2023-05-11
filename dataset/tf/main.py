@@ -8,11 +8,18 @@ if "host" not in os.environ:
     host = "https://app.picsellia.com"
 else:
     host = os.environ["host"]
+
+if 'organization_id' not in os.environ:
+    organization_id = None
+else:
+    organization_id = os.environ["organization_id"]
+
 job_id = os.environ["job_id"]
 
 client = Client(
     api_token=api_token,
-    host=host
+    host=host,
+    organization_id=organization_id
 )
 
 job = client.get_job_by_id(job_id)

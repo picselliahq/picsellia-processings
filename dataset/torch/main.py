@@ -28,6 +28,7 @@ context = job.sync()["dataset_version_processing_job"]
 model_version_id = context["model_version_id"]
 dataset_version_id = context["input_dataset_version_id"]
 parameters = context["parameters"]
+confidence_threshold = parameters.get("confidence_threshold", 0.1)
 X = PreAnnotator(
     client=client, 
     model_version_id=model_version_id, # same
@@ -35,4 +36,4 @@ X = PreAnnotator(
     parameters=parameters
 )
 X.setup_preannotation_job()
-X.preannotate()
+X.preannotate(confidence_threshold)

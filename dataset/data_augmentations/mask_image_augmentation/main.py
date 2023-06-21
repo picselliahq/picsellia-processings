@@ -14,15 +14,9 @@ from picsellia.types.enums import AnnotationFileType
 from picsellia.types.enums import InferenceType
 
 from utils.mask_augmentation import prepare_mask_directories_for_multilabel, \
-    convert_seperated_multiclass_masks_to_polygons
+    convert_seperated_multiclass_masks_to_polygons, compute_class_to_pixel_dict
 
-# have this as a processing parameter?
-class_to_pixel_mapping = {
-    'Cristallin': 63,
-    'Cornée': 126,
-    "Iris": 189,
-    'Angle': 252
-}
+
 
 api_token = os.environ["api_token"]
 organization_id = os.environ["organization_id"]
@@ -53,6 +47,8 @@ input_dataset_version: DatasetVersion = client.get_dataset_version_by_id(
     input_dataset_version_id
 )
 input_dataset_version.download("images")
+
+class_to_pixel_mapping = compute_class_to_pixel_dict(input_dataset_version)
 
 transform = A.Compose([
     A.HorizontalFlip(p=1),

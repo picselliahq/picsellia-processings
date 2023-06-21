@@ -81,3 +81,18 @@ def compute_mask_margin(class_to_pixel_mapping):
         differences.append(pixel_values[i + 1] - pixel_values[i])
 
     return int(min(differences) / 3)
+
+
+def compute_class_to_pixel_dict(dataset_version: DatasetVersion):
+    label_names = []
+    for label in dataset_version.list_labels():
+        label_names.append(label.name)
+    len_labels = len(label_names)
+    if len_labels > 24:
+        print("You have more labels than this processing can handle...")
+        return
+    class_to_pixel_dict = {label_names[0]: 1}
+    pixel_diff = int(255 / len_labels)
+    for l in range(1, len_labels):
+        class_to_pixel_dict[label_names[l]] = class_to_pixel_dict[label_names[l - 1]] + pixel_diff
+    return class_to_pixel_dict

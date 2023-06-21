@@ -16,15 +16,13 @@ from picsellia.types.enums import InferenceType
 from utils.mask_augmentation import prepare_mask_directories_for_multilabel, \
     convert_seperated_multiclass_masks_to_polygons
 
-
 # have this as a processing parameter?
-class_to_pixel_mapping  = {
+class_to_pixel_mapping = {
     'Cristallin': 63,
     'Cornée': 126,
     "Iris": 189,
     'Angle': 252
 }
-
 
 api_token = os.environ["api_token"]
 organization_id = os.environ["organization_id"]
@@ -60,7 +58,6 @@ transform = A.Compose([
     A.HorizontalFlip(p=1),
 ])
 
-
 root_directory = os.getcwd()
 annotation_path = input_dataset_version.export_annotation_file(AnnotationFileType.COCO, target_path=root_directory)
 coco = COCO(annotation_path)
@@ -71,7 +68,6 @@ augmented_image_dir = "augmented-images"
 augmented_mask_dir = "augmented-masks"
 os.makedirs(augmented_image_dir, exist_ok=True)
 os.makedirs(augmented_mask_dir, exist_ok=True)
-
 
 augmented_image_paths = []
 for img in coco.imgs.values():
@@ -96,7 +92,6 @@ new_dataset_name = input_dataset_version.version + "-augmented"
 augmented_dataset = dataset.create_version(new_dataset_name)
 create_data_and_add_to_dataset(augmented_image_paths, augmented_dataset)
 
-
 dataset_version_id = augmented_dataset.id
 dataset = client.get_dataset_version_by_id(dataset_version_id)
 dataset.set_type(InferenceType.SEGMENTATION)
@@ -108,6 +103,3 @@ prepare_mask_directories_for_multilabel(class_to_pixel_mapping=class_to_pixel_ma
                                         mask_directory=original_mask_directory)
 
 convert_seperated_multiclass_masks_to_polygons(data_directory=data_directory, dataset_version=dataset)
-
-
-

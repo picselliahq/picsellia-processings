@@ -19,10 +19,17 @@ api_token = os.environ["api_token"]
 organization_id = os.environ["organization_id"]
 job_id = os.environ["job_id"]
 
+if "host" not in os.environ:
+    host = "https://app.picsellia.com"
+else:
+    host = os.environ["host"]
+    
 client = Client(
     api_token=api_token,
-    organization_id=organization_id
+    organization_id=organization_id,
+    host=host
 )
+
 datalake = client.get_datalake()
 
 
@@ -52,7 +59,7 @@ class_to_pixel_mapping = compute_class_to_pixel_dict(input_dataset_version)
 transform = A.Compose([
     A.HorizontalFlip(p=parameters['horizontal_flip_probability']),
     A.RandomBrightnessContrast(p=parameters['random_brightness_contrast_probability']),
-    A.GaussNoise(p=parameters['gauss_noise_probablity']),
+    A.GaussNoise(p=parameters['gauss_noise_probability']),
 ])
 
 root_directory = os.getcwd()

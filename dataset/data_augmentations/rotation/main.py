@@ -14,11 +14,16 @@ api_token = os.environ["api_token"]
 organization_id = os.environ["organization_id"]
 job_id = os.environ["job_id"]
 
+if "host" not in os.environ:
+    host = "https://app.picsellia.com"
+else:
+    host = os.environ["host"]
+    
 client = Client(
     api_token=api_token,
-    organization_id=organization_id
+    organization_id=organization_id,
+    host=host
 )
-
 job = client.get_job_by_id(job_id)
 
 context = job.sync()["dataset_version_processing_job"]

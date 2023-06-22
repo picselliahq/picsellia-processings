@@ -89,10 +89,11 @@ def compute_class_to_pixel_dict(dataset_version: DatasetVersion):
         label_names.append(label.name)
     len_labels = len(label_names)
     if len_labels > 24:
-        print("You have more labels than this processing can handle...")
-        return
-    class_to_pixel_dict = {label_names[0]: 1}
+        raise Exception("You have more labels than this processing can support..")
     pixel_diff = int(255 / len_labels)
+    class_to_pixel_dict = {label_names[0]: pixel_diff}
+
     for l in range(1, len_labels):
-        class_to_pixel_dict[label_names[l]] = class_to_pixel_dict[label_names[l - 1]] + pixel_diff
+        class_to_pixel_dict[label_names[l]] = class_to_pixel_dict[label_names[l-1]] + pixel_diff
     return class_to_pixel_dict
+

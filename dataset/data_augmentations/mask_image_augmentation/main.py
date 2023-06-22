@@ -16,8 +16,6 @@ from picsellia.types.enums import InferenceType
 from utils.mask_augmentation import prepare_mask_directories_for_multilabel, \
     convert_seperated_multiclass_masks_to_polygons, compute_class_to_pixel_dict
 
-
-
 api_token = os.environ["api_token"]
 organization_id = os.environ["organization_id"]
 job_id = os.environ["job_id"]
@@ -53,7 +51,9 @@ input_dataset_version.download("images")
 class_to_pixel_mapping = compute_class_to_pixel_dict(input_dataset_version)
 
 transform = A.Compose([
-    A.HorizontalFlip(p=1),
+    A.HorizontalFlip(p=parameters['horizontal_flip_probability']),
+    A.RandomBrightnessContrast(p=parameters['horizontal_flip_probability']),
+    A.GaussNoise(p=parameters['gauss_noise_probablity']),
 ])
 
 root_directory = os.getcwd()

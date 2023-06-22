@@ -5,10 +5,10 @@ ENV PYTHONUNBUFFERED 1
 ARG DEBIAN_FRONTEND=noninteractive
 
 RUN pip3 install --no-cache-dir picsellia
-COPY requirements.txt .
+COPY dataset/data_augmentations/requirements.txt .
 RUN pip3 install -r requirements.txt
-COPY . /
-
+COPY dataset/data_augmentations/mask_image_augmentation /picsellia
+COPY dataset/data_augmentations/utils /picsellia/utils
 
 
 CMD ["/picsellia/launch_processing.py"]

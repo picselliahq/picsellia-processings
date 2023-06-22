@@ -1,6 +1,5 @@
 from picsellia import Client
 from picsellia.sdk.dataset import DatasetVersion
-from utils.data_augmentation import simple_rotation
 import os
 
 import albumentations as A
@@ -52,7 +51,7 @@ class_to_pixel_mapping = compute_class_to_pixel_dict(input_dataset_version)
 
 transform = A.Compose([
     A.HorizontalFlip(p=parameters['horizontal_flip_probability']),
-    A.RandomBrightnessContrast(p=parameters['horizontal_flip_probability']),
+    A.RandomBrightnessContrast(p=parameters['random_brightness_contrast_probability']),
     A.GaussNoise(p=parameters['gauss_noise_probablity']),
 ])
 

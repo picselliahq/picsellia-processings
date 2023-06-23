@@ -57,7 +57,7 @@ class_to_pixel_mapping = compute_class_to_pixel_dict(input_dataset_version)
 transform = A.Compose([
     A.HorizontalFlip(p=parameters['horizontal_flip_probability']),
     A.RandomBrightnessContrast(p=parameters['random_brightness_contrast_probability']),
-    A.GaussNoise(p=parameters['gauss_noise_probablity']),
+    A.GaussNoise(p=parameters['gauss_noise_probability']),
 ])
 
 root_directory = os.getcwd()

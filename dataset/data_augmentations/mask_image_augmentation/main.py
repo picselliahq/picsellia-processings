@@ -18,7 +18,10 @@ from utils.mask_augmentation import prepare_mask_directories_for_multilabel, \
 api_token = os.environ["api_token"]
 organization_id = os.environ["organization_id"]
 job_id = os.environ["job_id"]
-
+if "host" not in os.environ:
+    host = "https://app.picsellia.com"
+else:
+    host = os.environ["host"]
 client = Client(
     api_token=api_token,
     organization_id=organization_id
@@ -77,7 +80,7 @@ for img in coco.imgs.values():
         anns_img = np.maximum(anns_img, coco.annToMask(ann) * (class_to_pixel_mapping[label_name]))
     image = cv2.imread(os.path.join("images", img["file_name"]))
 
-    for iteration in int(number_of_augmentations):
+    for iteration in range(number_of_augmentations):
         transformed = transform(image=image, mask=anns_img)
         transformed_image = transformed['image']
         transformed_mask = transformed['mask']
@@ -92,6 +95,7 @@ dataset = client.get_dataset_by_id(input_dataset_version.origin_id)
 output_dataset: DatasetVersion = client.get_dataset_version_by_id(
     output_dataset_version
 )
+
 create_data_and_add_to_dataset(augmented_image_paths, output_dataset)
 
 original_mask_directory = augmented_mask_dir

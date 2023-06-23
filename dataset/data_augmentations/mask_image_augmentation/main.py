@@ -24,7 +24,8 @@ else:
     host = os.environ["host"]
 client = Client(
     api_token=api_token,
-    organization_id=organization_id
+    organization_id=organization_id, 
+    host=host
 )
 datalake = client.get_datalake()
 

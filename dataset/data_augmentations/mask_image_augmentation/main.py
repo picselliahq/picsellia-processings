@@ -18,18 +18,15 @@ from utils.mask_augmentation import prepare_mask_directories_for_multilabel, \
 api_token = os.environ["api_token"]
 organization_id = os.environ["organization_id"]
 job_id = os.environ["job_id"]
-
 if "host" not in os.environ:
     host = "https://app.picsellia.com"
 else:
     host = os.environ["host"]
-    
 client = Client(
     api_token=api_token,
-    organization_id=organization_id,
+    organization_id=organization_id, 
     host=host
 )
-
 datalake = client.get_datalake()
 
 
@@ -48,6 +45,7 @@ input_dataset_version_id = context["input_dataset_version_id"]
 output_dataset_version = context["output_dataset_version_id"]
 
 parameters = context["parameters"]
+number_of_augmentations = parameters["number_of_augmentations"]
 
 input_dataset_version: DatasetVersion = client.get_dataset_version_by_id(
     input_dataset_version_id
@@ -82,20 +80,23 @@ for img in coco.imgs.values():
         label_name = coco.cats[ann['category_id']]['name']
         anns_img = np.maximum(anns_img, coco.annToMask(ann) * (class_to_pixel_mapping[label_name]))
     image = cv2.imread(os.path.join("images", img["file_name"]))
-    transformed = transform(image=image, mask=anns_img)
-    transformed_image = transformed['image']
-    transformed_mask = transformed['mask']
-    transformed_mask_path = os.path.join(augmented_mask_dir, f"augmented-1-{img['file_name']}")
-    transformed_image_path = os.path.join(augmented_image_dir, f"augmented-1-{img['file_name']}")
-    cv2.imwrite(transformed_mask_path, transformed_mask)
-    cv2.imwrite(transformed_image_path, transformed_image)
-    augmented_image_paths.append(transformed_image_path)
+
+    for iteration in range(number_of_augmentations):
+        transformed = transform(image=image, mask=anns_img)
+        transformed_image = transformed['image']
+        transformed_mask = transformed['mask']
+        transformed_mask_path = os.path.join(augmented_mask_dir, f"augmented-{iteration}-{img['file_name']}")
+        transformed_image_path = os.path.join(augmented_image_dir, f"augmented-{iteration}-{img['file_name']}")
+        cv2.imwrite(transformed_mask_path, transformed_mask)
+        cv2.imwrite(transformed_image_path, transformed_image)
+        augmented_image_paths.append(transformed_image_path)
 
 dataset = client.get_dataset_by_id(input_dataset_version.origin_id)
 
 output_dataset: DatasetVersion = client.get_dataset_version_by_id(
     output_dataset_version
 )
+
 create_data_and_add_to_dataset(augmented_image_paths, output_dataset)
 
 original_mask_directory = augmented_mask_dir

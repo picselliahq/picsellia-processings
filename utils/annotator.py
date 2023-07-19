@@ -213,7 +213,7 @@ class PreAnnotator:
         else:
             return image, image.width, image.height
     
-    def _format_and_save_rectangles(self, asset: Asset, predictions: dict, confidence_threshold: float = 0.5) -> None:
+    def _format_and_save_rectangles(self, asset: Asset, predictions: dict, confidence_threshold: float) -> None:
         scores, boxes, classes = self._format_picsellia_rectangles(
             width=asset.width,
             height=asset.height,

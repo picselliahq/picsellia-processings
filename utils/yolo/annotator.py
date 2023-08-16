@@ -135,8 +135,8 @@ class PreAnnotator:
     def rescale_normalized_segment(self, segment: List, width: int, height: int) -> List[int]:
         segment = [
             [
-                int(box[0] * width),
-                int(box[1] * height),
+                int(box[0] * height),
+                int(box[1] * width),
             ]
             for box in segment
         ]
@@ -146,16 +146,11 @@ class PreAnnotator:
     def _format_picsellia_polygons(self, asset: Asset, predictions: np.array) -> Tuple[List, List, List, List]:
         if predictions.masks is None:
             return []
-        polygons = predictions.masks.segments
-        rescaled_polygons = list(
-            map(
-                lambda segment: self.rescale_normalized_segment(
-                    segment=segment, width=asset.width, height=asset.height
-                ),
-                polygons,
-            )
-        )        
-        return rescaled_polygons
+        polygons = predictions.masks.xy
+        casted_polygons = list(
+            map(lambda polygon: polygon.astype(int), polygons))
+        return list(map(lambda polygon: polygon.tolist(), casted_polygons))
+
     
     def _format_and_save_rectangles(self, asset: Asset, prediction: List, confidence_treshold: float = 0.1) -> None:
         boxes = prediction.boxes.xyxyn.cpu().numpy()

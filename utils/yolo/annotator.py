@@ -135,8 +135,8 @@ class PreAnnotator:
     def rescale_normalized_segment(self, segment: List, width: int, height: int) -> List[int]:
         segment = [
             [
-                int(box[0] * height),
-                int(box[1] * width),
+                int(box[0] * width),
+                int(box[1] * height),
             ]
             for box in segment
         ]

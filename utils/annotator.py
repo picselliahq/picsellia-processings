@@ -213,7 +213,7 @@ class PreAnnotator:
         else:
             return image, image.width, image.height
     
-    def _format_and_save_rectangles(self, asset: Asset, predictions: dict, confidence_treshold: float = 0.5) -> None:
+    def _format_and_save_rectangles(self, asset: Asset, predictions: dict, confidence_threshold: float) -> None:
         scores, boxes, classes = self._format_picsellia_rectangles(
             width=asset.width,
             height=asset.height,
@@ -229,7 +229,7 @@ class PreAnnotator:
         else:
             return
         for i in range(nb_box_limit):
-            if scores[i] >= confidence_treshold:
+            if scores[i] >= confidence_threshold:
                 try:
                     coord_positive = True
                     box = boxes[i]
@@ -253,7 +253,7 @@ class PreAnnotator:
             annotation.create_multiple_rectangles(rectangle_list)
             logging.info(f"Asset: {asset.filename} pre-annotated.")
 
-    def _format_and_save_polygons(self, asset: Asset, predictions: dict, confidence_treshold: float) -> None:
+    def _format_and_save_polygons(self, asset: Asset, predictions: dict, confidence_threshold: float) -> None:
         scores, masks, _, classes = self._format_picsellia_polygons(
             width=asset.width,
             height=asset.height,
@@ -269,7 +269,7 @@ class PreAnnotator:
         else:
             return
         for i in range(nb_box_limit):
-            if scores[i] >= confidence_treshold:
+            if scores[i] >= confidence_threshold:
                 try:
                     if self._is_labelmap_starting_at_zero():
                         label: Label = self.dataset_object.get_label(
@@ -285,8 +285,9 @@ class PreAnnotator:
             annotation.create_multiple_polygons(polygons_list)
             logging.info(f"Asset: {asset.filename} pre-annotated.")
 
-    def preannotate(self, confidence_treshold: float = 0.5):
+    def preannotate(self):
         dataset_size = self.dataset_object.sync()["size"]
+        confidence_threshold = self.parameters.get("confidence_threshold", 0.5)
         if not "batch_size" in self.parameters:
             batch_size = 8
         else:
@@ -309,7 +310,7 @@ class PreAnnotator:
                         if self.dataset_object.type == InferenceType.OBJECT_DETECTION:
                             self._format_and_save_rectangles(asset, predictions)
                         elif self.dataset_object.type == InferenceType.SEGMENTATION:
-                            self._format_and_save_polygons(asset, predictions, confidence_treshold)
+                            self._format_and_save_polygons(asset, predictions, confidence_threshold)
 
                     #  Fetch original annotation and shapes to overlay over predictions
 

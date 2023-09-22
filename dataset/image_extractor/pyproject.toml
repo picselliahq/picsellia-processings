@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "image-extractor"
+version = "0.1.0"
+description = ""
+authors = ["SoniaGrh <sonia.garrouch@hotmail.fr>"]
+readme = "README.md"
+packages = []
+
+[tool.poetry.dependencies]
+python = "^3.10"
+picsellia = "^6.10.2"
+opencv-python = "^4.8.0.76"
+ipykernel = "^6.25.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

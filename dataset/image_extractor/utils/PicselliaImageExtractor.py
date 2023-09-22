@@ -1,4 +1,5 @@
 import os
+
 import cv2
 from picsellia import Client
 from picsellia.types.enums import InferenceType, TagTarget
@@ -12,7 +13,9 @@ class PicselliaImageExtractor:
 
         self.dataset = self.client.get_dataset_by_id(id=dataset_id)
 
-        self.dataset_version = self.client.get_dataset_version_by_id(id=dataset_version_id)
+        self.dataset_version = self.client.get_dataset_version_by_id(
+            id=dataset_version_id
+        )
         self.dataset_version_folder = None
 
         self.extracted_dataset_version_folder = None
@@ -23,10 +26,14 @@ class PicselliaImageExtractor:
         self.dataset_version.download(target_path=self.dataset_version_folder)
 
     def create_extracted_ds(self):
-        self.extracted_dataset_version_folder = f"extracted_{self.dataset_version_folder}"
+        self.extracted_dataset_version_folder = (
+            f"extracted_{self.dataset_version_folder}"
+        )
         os.makedirs(self.extracted_dataset_version_folder, exist_ok=True)
-        self.extracted_dataset_version= self.dataset.create_version(
-            version=self.extracted_dataset_version_folder, type=InferenceType.CLASSIFICATION)
+        self.extracted_dataset_version = self.dataset.create_version(
+            version=self.extracted_dataset_version_folder,
+            type=InferenceType.CLASSIFICATION,
+        )
 
     def process_images(self):
         for image_filename in os.listdir(self.dataset_version_folder):
@@ -44,9 +51,14 @@ class PicselliaImageExtractor:
                 self.extract(image, rectangle, current_bbox, image_filename)
 
     def extract(self, image, rectangle, current_bbox, image_filename):
-        extracted_image = image[rectangle.y:rectangle.y + rectangle.h, rectangle.x:rectangle.x + rectangle.w]
+        extracted_image = image[
+            rectangle.y : rectangle.y + rectangle.h,
+            rectangle.x : rectangle.x + rectangle.w,
+        ]
 
-        label_folder = os.path.join(self.extracted_dataset_version_folder, rectangle.label.name)
+        label_folder = os.path.join(
+            self.extracted_dataset_version_folder, rectangle.label.name
+        )
         os.makedirs(label_folder, exist_ok=True)
 
         new_filename = f"{os.path.splitext(image_filename)[0]}_{rectangle.label.name}_{current_bbox}.{image_filename.split('.')[-1]}"
@@ -56,11 +68,23 @@ class PicselliaImageExtractor:
 
     def upload_images_to_extracted_ds(self):
         for label_folder in os.listdir(self.extracted_dataset_version_folder):
-            full_label_folder_path = os.path.join(self.extracted_dataset_version_folder, label_folder)
+            full_label_folder_path = os.path.join(
+                self.extracted_dataset_version_folder, label_folder
+            )
             if os.path.isdir(full_label_folder_path):
-                filepaths = [os.path.join(full_label_folder_path, file) for file in os.listdir(full_label_folder_path)]
-                data = self.datalake.upload_data(filepaths=filepaths, tags=[label_folder])
-                adding_job = self.extracted_dataset_version.add_data(data=data, tags=[label_folder])
+                filepaths = [
+                    os.path.join(full_label_folder_path, file)
+                    for file in os.listdir(full_label_folder_path)
+                ]
+                data = self.datalake.upload_data(
+                    filepaths=filepaths, tags=[label_folder]
+                )
+                adding_job = self.extracted_dataset_version.add_data(
+                    data=data, tags=[label_folder]
+                )
                 adding_job.wait_for_done()
-        conversion_job = self.extracted_dataset_version.convert_tags_to_classification(tag_type=TagTarget.ASSET, tags=self.extracted_dataset_version.list_asset_tags())
+        conversion_job = self.extracted_dataset_version.convert_tags_to_classification(
+            tag_type=TagTarget.ASSET,
+            tags=self.extracted_dataset_version.list_asset_tags(),
+        )
         conversion_job.wait_for_done()

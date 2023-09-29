@@ -1,0 +1,22 @@
+FROM picsellia/cuda:11.7.1-cudnn8-ubuntu20.04
+
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y \
+        curl \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl -sSL https://install.python-poetry.org | python3.10 - || true \
+    && pip3 install poetry
+
+ARG REBUILD_ALL
+ARG REBUILD_PICSELLIA
+
+WORKDIR /experiment
+
+COPY ./dataset/image_extractor ./
+COPY ./abstract_processor ./abstract_processor
+
+RUN poetry config virtualenvs.create false \
+    && poetry install --no-interaction --no-ansi
+
+ENTRYPOINT ["run", "main.py"]

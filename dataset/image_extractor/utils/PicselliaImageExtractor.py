@@ -1,45 +1,38 @@
 import os
 
 import cv2
-from picsellia import Client
-from picsellia.types.enums import InferenceType, TagTarget
+from picsellia import Rectangle
+from picsellia.types.enums import TagTarget
+
+from abstract_processor.processor import AbstractProcessor
 
 
-class PicselliaImageExtractor:
-    def __init__(self, api_token, dataset_id, dataset_version_id, datalake_name):
-        self.client = Client(api_token=api_token)
+class PicselliaImageExtractor(AbstractProcessor):
+    def __init__(self):
+        super().__init__()
+        context = self.job.sync()["dataset_version_processing_job"]
 
-        self.datalake = self.client.get_datalake(name=datalake_name)
-
-        self.dataset = self.client.get_dataset_by_id(id=dataset_id)
-
-        self.dataset_version = self.client.get_dataset_version_by_id(
-            id=dataset_version_id
+        self.datalake = self.client.get_datalake(
+            name=context["parameters"].get("datalake_name", "default")
         )
-        self.dataset_version_folder = None
-
-        self.extracted_dataset_version_folder = None
-        self.extracted_dataset_version = None
-
-    def download_ds(self):
+        self.dataset_version = self.client.get_dataset_version_by_id(
+            id=context["input_dataset_version_id"]
+        )
         self.dataset_version_folder = self.dataset_version.version
+
+        self.extracted_dataset_version = self.client.get_dataset_version_by_id(
+            id=context["output_dataset_version_id"]
+        )
+        self.extracted_dataset_version_folder = self.extracted_dataset_version.version
+
+    def _download_ds(self):
         self.dataset_version.download(target_path=self.dataset_version_folder)
 
-    def create_extracted_ds(self):
-        self.extracted_dataset_version_folder = (
-            f"extracted_{self.dataset_version_folder}"
-        )
-        os.makedirs(self.extracted_dataset_version_folder, exist_ok=True)
-        self.extracted_dataset_version = self.dataset.create_version(
-            version=self.extracted_dataset_version_folder,
-            type=InferenceType.CLASSIFICATION,
-        )
-
-    def process_images(self):
+    def _process_images(self):
         for image_filename in os.listdir(self.dataset_version_folder):
-            self.process_image(image_filename)
+            self._process_image(image_filename)
 
-    def process_image(self, image_filename):
+    def _process_image(self, image_filename: str):
         image_filepath = os.path.join(self.dataset_version_folder, image_filename)
         image = cv2.imread(image_filepath)
         asset = self.dataset_version.find_asset(filename=image_filename)
@@ -48,14 +41,21 @@ class PicselliaImageExtractor:
         for annotation in asset.list_annotations():
             for rectangle in annotation.list_rectangles():
                 current_bbox += 1
-                self.extract(image, rectangle, current_bbox, image_filename)
+                self._extract(image, rectangle, current_bbox, image_filename)
 
-    def extract(self, image, rectangle, current_bbox, image_filename):
+    def _extract(
+        self,
+        image: cv2.imread,
+        rectangle: Rectangle,
+        current_bbox: int,
+        image_filename: str,
+    ):
         extracted_image = image[
             rectangle.y : rectangle.y + rectangle.h,
             rectangle.x : rectangle.x + rectangle.w,
         ]
-
+        if extracted_image.shape[0] == 0 or extracted_image.shape[1] == 0:
+            return
         label_folder = os.path.join(
             self.extracted_dataset_version_folder, rectangle.label.name
         )
@@ -66,7 +66,7 @@ class PicselliaImageExtractor:
 
         cv2.imwrite(new_filepath, extracted_image)
 
-    def upload_images_to_extracted_ds(self):
+    def _upload_images_to_extracted_ds(self):
         for label_folder in os.listdir(self.extracted_dataset_version_folder):
             full_label_folder_path = os.path.join(
                 self.extracted_dataset_version_folder, label_folder
@@ -88,3 +88,8 @@ class PicselliaImageExtractor:
             tags=self.extracted_dataset_version.list_asset_tags(),
         )
         conversion_job.wait_for_done()
+
+    def process(self):
+        self._download_ds()
+        self._process_images()
+        self._upload_images_to_extracted_ds()

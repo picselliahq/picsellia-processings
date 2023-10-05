@@ -25,6 +25,11 @@ class PicselliaImageExtractor(AbstractProcessor):
         )
         self.extracted_dataset_version_folder = self.extracted_dataset_version.version
 
+    def process(self):
+        self._download_ds()
+        self._process_images()
+        self._upload_images_to_extracted_ds()
+
     def _download_ds(self):
         self.dataset_version.download(target_path=self.dataset_version_folder)
 
@@ -88,8 +93,3 @@ class PicselliaImageExtractor(AbstractProcessor):
             tags=self.extracted_dataset_version.list_asset_tags(),
         )
         conversion_job.wait_for_done()
-
-    def process(self):
-        self._download_ds()
-        self._process_images()
-        self._upload_images_to_extracted_ds()

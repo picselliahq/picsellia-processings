@@ -10,6 +10,8 @@ from picsellia import Tag, Asset
 import matplotlib.pyplot as plt
 from pycocotools.coco import COCO
 
+logging.getLogger("picsellia").setLevel(logging.INFO)
+
 
 def get_duplicate_images(dataset_path: str) -> dict:
     phasher = PHash()
@@ -21,7 +23,9 @@ def get_duplicate_images(dataset_path: str) -> dict:
 def add_tags_to_duplicate_images(
         dataset_version: DatasetVersion, duplicates: dict
 ) -> set:
-    dup_image_tag = dataset_version.create_asset_tag(name="dup_image")
+
+    dup_image_tag = dataset_version.get_or_create_asset_tag(name="dup_image")
+
     duplicate_files = set()
     for filename, duplicate_filenames in duplicates.items():
         for duplicate_filename in duplicate_filenames:
@@ -103,7 +107,7 @@ def add_nbr_channel_byte_tags(
 
         tag_name = str(nbr_channels) + "_" + str(nbr_bytes)
         if tag_name not in existing_tag_names:
-            image_property_tag = dataset_version.create_asset_tag(name=tag_name)
+            image_property_tag = dataset_version.get_or_create_asset_tag(name=tag_name)
         else:
             image_property_tag = next(
                 (tag for tag in existing_tags if tag.name == tag_name), None
@@ -159,11 +163,11 @@ def get_all_areas_filenames(coco: COCO) -> tuple[np.ndarray, np.ndarray]:
 
 
 def log_results(
-    duplicate_image_filenames,
-    filename_duplicates,
-    byte_counts,
-    channel_counts,
-    area_outlier_filenames,
+        duplicate_image_filenames,
+        filename_duplicates,
+        byte_counts,
+        channel_counts,
+        area_outlier_filenames,
 ):
     if duplicate_image_filenames:
         logging.info("\nDuplicate images:")

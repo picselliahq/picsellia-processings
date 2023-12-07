@@ -9,7 +9,8 @@ from utils import (
     get_duplicate_images,
     add_tags_to_duplicate_images,
     add_nbr_channel_byte_tags,
-    get_area_outlier_filenames, log_results,
+    get_area_outlier_filenames,
+    log_results,
 )
 
 
@@ -67,22 +68,3 @@ log_results(
     channel_counts,
     area_outlier_filenames,
 )
-# log summary of results
-# if duplicate_image_filenames:
-#     logging.info(f"duplicate images are: {duplicate_image_filenames}")
-# if filename_duplicates:
-#     logging.info(f"duplicate filenames are: {filename_duplicates}")
-#
-# logging.info(f"Number of images per nbr_bytes:")
-# for nbr_bytes, count in byte_counts.items():
-#     logging.info(f"{nbr_bytes}: {count} images")
-#
-# logging.info("Number of images per nbr_channels:")
-# for nbr_channels, count in channel_counts.items():
-#     logging.info(f"{nbr_channels}: {count} images")
-#
-# len_outlier_files = len(area_outlier_filenames)
-# logging.info(f"you have {len_outlier_files} image(s) with outlier areas")
-# if len_outlier_files > 0:
-#     logging.info(f"filenames with outlier areas: {area_outlier_filenames}")
-

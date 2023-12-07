@@ -53,7 +53,7 @@ def find_asset_by_filename(filename: str, dataset: DatasetVersion) -> Asset | No
         asset = dataset.find_asset(filename=filename)
         return asset
     except Exception as e:
-        print(e)
+        logging.info(e)
         return None
 
 
@@ -121,7 +121,7 @@ def get_nbr_channels(image: np.ndarray) -> int:
     elif shape == 3:
         nbr_channels = image.shape[2]
     else:
-        print("Image has an unexpected shape")
+        logging.info("Image has an unexpected shape")
     return nbr_channels
 
 
@@ -136,7 +136,7 @@ def get_area_outlier_filenames(coco: COCO, area_outlier_threshold: int) -> list[
         find_filename_by_id(image_id=filename_ids[i], coco=coco)
         for i in range(len(filename_ids))
     ]
-    print("Outlier Areas:", outlier_areas)
+    logging.info(f"Outlier Areas: {outlier_areas}")
     # Plot a histogram of area values
     # plt.hist(areas, bins=50, color='blue', edgecolor='black')
     # plt.title('Histogram of Object Areas')

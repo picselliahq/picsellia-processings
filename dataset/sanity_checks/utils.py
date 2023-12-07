@@ -136,13 +136,8 @@ def get_area_outlier_filenames(coco: COCO, area_outlier_threshold: int) -> list[
         find_filename_by_id(image_id=filename_ids[i], coco=coco)
         for i in range(len(filename_ids))
     ]
+    logging.info("\nMean Area: ", np.mean(areas))
     logging.info(f"Outlier Areas: {outlier_areas}")
-    # Plot a histogram of area values
-    # plt.hist(areas, bins=50, color='blue', edgecolor='black')
-    # plt.title('Histogram of Object Areas')
-    # plt.xlabel('Area')
-    # plt.ylabel('Frequency')
-    # plt.show()
 
     return ood_filenames
 
@@ -171,35 +166,26 @@ def log_results(
     area_outlier_filenames,
 ):
     if duplicate_image_filenames:
-        logging.info(f"duplicate images are: {duplicate_image_filenames}")
+        logging.info("\nDuplicate images:")
+        for filename in duplicate_image_filenames:
+            logging.info(f"  - {filename}")
+
     if filename_duplicates:
-        logging.info(f"duplicate filenames are: {filename_duplicates}")
+        logging.info("\nDuplicate filenames:")
+        for filename in filename_duplicates:
+            logging.info(f"  - {filename}")
 
-    logging.info(f"Number of images per nbr_bytes:")
+    logging.info("\nNumber of images per byte count:")
     for nbr_bytes, count in byte_counts.items():
-        logging.info(f"{nbr_bytes}: {count} images")
+        logging.info(f"  - {nbr_bytes}: {count} images")
 
-    logging.info("Number of images per nbr_channels:")
+    logging.info("\nNumber of images per channel count:")
     for nbr_channels, count in channel_counts.items():
-        logging.info(f"{nbr_channels}: {count} images")
+        logging.info(f"  - {nbr_channels}: {count} images")
 
     len_outlier_files = len(area_outlier_filenames)
-    logging.info(f"you have {len_outlier_files} image(s) with outlier areas")
+    logging.info(f"\nyou have {len_outlier_files} image(s) with outlier areas")
     if len_outlier_files > 0:
-        logging.info(f"filenames with outlier areas: {area_outlier_filenames}")
-
-# def check_bounding_boxes(coco, asset: Asset):
-#     image_width = asset.width
-#     image_height = asset.height
-#     annotations = coco.loadAnns(coco.getAnnIds())
-#
-#     for annotation in annotations:
-#         x, y, width, height = annotation['bbox']
-#         x_max, y_max = x + width, y + height
-#
-#         if x < 0 or y < 0 or x_max > image_width or y_max > image_height:
-#             print(x, y)
-#             print(x_max, y_max)
-#             print(image_width, image_height)
-#             print(
-#                 f"Bounding box exceeds image boundaries in annotation id {annotation['id']}, in asset {asset.filename}.")
+        logging.info("\nFilenames with outlier areas:")
+        for filename in area_outlier_filenames:
+            logging.info(f"  - {filename}")

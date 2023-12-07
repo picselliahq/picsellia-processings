@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import cv2
+import logging
 from scipy.stats import zscore
 from imagededup.methods import PHash
 from picsellia.sdk.dataset_version import DatasetVersion
@@ -18,7 +19,7 @@ def get_duplicate_images(dataset_path: str) -> dict:
 
 
 def add_tags_to_duplicate_images(
-    dataset_version: DatasetVersion, duplicates: dict
+        dataset_version: DatasetVersion, duplicates: dict
 ) -> set:
     dup_image_tag = dataset_version.create_asset_tag(name="dup_image")
     duplicate_files = set()
@@ -85,7 +86,7 @@ def find_filename_by_id(image_id: int, coco: COCO) -> str | None:
 
 
 def add_nbr_channel_byte_tags(
-    dataset_version: DatasetVersion, dataset_path: str
+        dataset_version: DatasetVersion, dataset_path: str
 ) -> tuple[dict, dict]:
     byte_counts = {}
     channel_counts = {}
@@ -161,6 +162,31 @@ def get_all_areas_filenames(coco: COCO) -> tuple[np.ndarray, np.ndarray]:
     image_ids = np.array(image_ids)
     return area_values_np, image_ids
 
+
+def log_results(
+    duplicate_image_filenames,
+    filename_duplicates,
+    byte_counts,
+    channel_counts,
+    area_outlier_filenames,
+):
+    if duplicate_image_filenames:
+        logging.info(f"duplicate images are: {duplicate_image_filenames}")
+    if filename_duplicates:
+        logging.info(f"duplicate filenames are: {filename_duplicates}")
+
+    logging.info(f"Number of images per nbr_bytes:")
+    for nbr_bytes, count in byte_counts.items():
+        logging.info(f"{nbr_bytes}: {count} images")
+
+    logging.info("Number of images per nbr_channels:")
+    for nbr_channels, count in channel_counts.items():
+        logging.info(f"{nbr_channels}: {count} images")
+
+    len_outlier_files = len(area_outlier_filenames)
+    logging.info(f"you have {len_outlier_files} image(s) with outlier areas")
+    if len_outlier_files > 0:
+        logging.info(f"filenames with outlier areas: {area_outlier_filenames}")
 
 # def check_bounding_boxes(coco, asset: Asset):
 #     image_width = asset.width

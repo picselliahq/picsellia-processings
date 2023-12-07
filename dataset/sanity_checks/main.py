@@ -54,6 +54,11 @@ if image_duplicates:
     )
 
 filename_duplicates = get_duplicate_filenames(dataset_version=dataset_version)
+if filename_duplicates:
+    dup_assets = dataset_version.find_all_assets(filenames=filename_duplicates)
+    dup_filename_tag = dataset_version.create_asset_tag(name="dup_filename")
+    dup_assets.add_tags(dup_filename_tag)
+
 channel_counts, byte_counts = add_nbr_channel_byte_tags(
     dataset_version=dataset_version, dataset_path=dataset_path
 )

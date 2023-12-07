@@ -8,6 +8,8 @@ ARG REBUILD_PICSELLIA
 WORKDIR /experiment
 
 COPY ./dataset/sanity_checks ./
+RUN mkdir -p /workspace
+RUN chown -R 42420:42420 /workspace
 
 
 ENTRYPOINT ["run", "main.py"]

@@ -13,7 +13,6 @@ from utils import (
     log_results,
 )
 
-
 os.environ["PICSELLIA_SDK_CUSTOM_LOGGING"] = "True"
 os.environ["PICSELLIA_SDK_DOWNLOAD_BAR_MODE"] = "2"
 logging.getLogger("picsellia").setLevel(logging.INFO)
@@ -36,12 +35,13 @@ parameters = context["parameters"]
 area_outlier_threshold = 4
 duplicate_image_filenames = {}
 dataset_path = "data"
+cwd = os.getcwd()
 
 dataset_version = client.get_dataset_version_by_id(input_dataset_version_id)
 dataset_version.download(dataset_path)
 annotation_file_path = dataset_version.export_annotation_file(
     annotation_file_type=AnnotationFileType.COCO,
-    target_path=os.path.join("annotations"),
+    target_path=cwd,
     force_replace=True,
 )
 

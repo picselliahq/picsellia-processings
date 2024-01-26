@@ -9,3 +9,6 @@ docker push picsellpn/preannotation-yolov8:capture
 
 docker build -f docker/Dockerfile.mask . -t picsellpn/albumentation-segmentation:capture
 docker push picsellpn/albumentation-segmentation:capture
+
+docker build -f docker/Dockerfile.vit . -t picsellia/preannotation-vit:latest
+docker push picsellia/preannotation-vit:latest 

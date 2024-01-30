@@ -56,6 +56,16 @@ class PreAnnotator:
         self._load_model()
 
     def pre_annotate(self, confidence_threshold: float = 0.5):
+        """
+        Processes and annotates assets in the dataset using the YOLOX model.
+
+        Args:
+            confidence_threshold (float, optional): A threshold value used to filter
+                                                    the bounding boxes based on their
+                                                    confidence scores. Only boxes with
+                                                    confidence scores above this threshold
+                                                    are annotated. Defaults to 0.5.
+        """
         dataset_size = self.dataset_version.sync()["size"]
         batch_size = self.parameters.get("batch_size", 8)
         batch_size = min(batch_size, dataset_size)

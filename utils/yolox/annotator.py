@@ -260,6 +260,7 @@ class PreAnnotator:
 
             self.model = onnx.load(self.model_weights_path)
             onnx.checker.check_model(self.model)
+
             self.ort_session = ort.InferenceSession(self.model_weights_path)
             logging.info("Model loaded successfully.")
         except Exception as e:

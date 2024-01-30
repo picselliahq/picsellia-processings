@@ -16,15 +16,14 @@ else:
 
 client = Client(api_token=api_token, host=host, organization_id=organization_id)
 
-# job_id = os.environ["job_id"]
-# job = client.get_job_by_id(job_id)
+job_id = os.environ["job_id"]
+job = client.get_job_by_id(job_id)
 
-# context = job.sync()["dataset_version_processing_job"]
-model_version_id = "018d452c-bca0-7f2e-951f-a519e25b6093"  # context["model_version_id"]
-dataset_version_id = (
-    "018d5604-e89e-7312-b5f3-fc6db1109ec1"  # context["input_dataset_version_id"]
-)
-parameters = {"batch_size": 8, "confidence_threshold": 0}  # context["parameters"]
+context = job.sync()["dataset_version_processing_job"]
+model_version_id = context["model_version_id"]
+dataset_version_id = context["input_dataset_version_id"]
+
+parameters = context["parameters"]
 confidence_threshold = parameters.get("confidence_threshold", 0.1)
 
 

@@ -128,14 +128,6 @@ class PreAnnotator:
         rectangles_to_save = []
         num_boxes = min(len(boxes), 100)
 
-        if num_boxes > 0:
-            annotation = asset.create_annotation(duration=0.0)
-        else:
-            logging.info(
-                f"Asset '{asset.filename}' was not pre-annotated because no bounding box has been found."
-            )
-            return
-
         for i in range(num_boxes):
             if scores[i] < confidence_threshold:
                 continue

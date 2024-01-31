@@ -128,6 +128,8 @@ class PreAnnotator:
         rectangles_to_save = []
         num_boxes = min(len(boxes), 100)
 
+        annotation = asset.create_annotation(duration=0.0)
+
         for i in range(num_boxes):
             if scores[i] < confidence_threshold:
                 continue

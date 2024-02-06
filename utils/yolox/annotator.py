@@ -19,8 +19,6 @@ import numpy as np
 import logging
 import onnxruntime as ort
 
-from dataset.yolox.tqdm_handler import TqdmLogger
-
 
 class YoloxInferenceResult:
     def __init__(
@@ -80,12 +78,9 @@ class PreAnnotator:
             f"Total images: {dataset_size} --"
         )
 
-        tqdm_out = TqdmLogger(logging.getLogger(), level=logging.INFO)
-
         for batch_number in tqdm.tqdm(
             range(total_batch_number),
             desc="Processing batches",
-            file=tqdm_out,
             unit="batch",
         ):
             offset = batch_number * batch_size
@@ -97,12 +92,6 @@ class PreAnnotator:
                     image_data=image_data
                 )
 
-                if len(asset.list_annotations()) > 0:
-                    logging.warning(
-                        f"Asset {asset.filename} is already annotated. Skipping."
-                    )
-                    continue
-
                 if yolox_inference_result and len(yolox_inference_result.boxes) > 0:
                     if self.dataset_version.type == InferenceType.OBJECT_DETECTION:
                         self._format_and_save_rectangles(
@@ -113,6 +102,8 @@ class PreAnnotator:
                             f"The dataset version's type {self.dataset_version.type} is not handled yet "
                             f"by this processing."
                         )
+
+            logging.info("")
 
     def _convert_picsellia_asset_to_numpy(self, asset: Asset) -> np.ndarray:
         """
@@ -153,9 +144,14 @@ class PreAnnotator:
         rectangles_to_save = []
         num_boxes = min(len(boxes), 100)
 
+        logging_lines = [f"\nProcessing asset '{asset.filename}':"]
+
+        if len(asset.list_annotations()) > 0:
+            logging_lines.append(f"Asset is already annotated. Skipping.")
+            logging.info("\n".join(logging_lines))
+            return
+
         annotation = asset.create_annotation(duration=0.0)
-        logging.info(f"\nProcessing asset '{asset.filename}':")
-        logging_lines = []
 
         for i in range(num_boxes):
             if scores[i] < confidence_threshold:

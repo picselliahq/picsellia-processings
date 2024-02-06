@@ -4,6 +4,7 @@ from picsellia import Client
 from utils.yolox.annotator import PreAnnotator
 import os
 
+logging.basicConfig(format="%(message)s", level=logging.INFO)
 logging.getLogger().setLevel(logging.INFO)
 
 api_token = os.environ["api_token"]

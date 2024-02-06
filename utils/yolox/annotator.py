@@ -1,4 +1,5 @@
 import math
+from collections import defaultdict
 
 import requests
 from PIL import Image
@@ -17,6 +18,8 @@ import numpy as np
 
 import logging
 import onnxruntime as ort
+
+from dataset.yolox.tqdm_handler import TqdmLogger
 
 
 class YoloxInferenceResult:
@@ -71,7 +74,20 @@ class PreAnnotator:
         batch_size = min(batch_size, dataset_size)
 
         total_batch_number = math.ceil(dataset_size / batch_size)
-        for batch_number in tqdm.tqdm(range(total_batch_number)):
+
+        logging.info(
+            f"\n-- Starting processing {total_batch_number} batch(es) of {batch_size} image(s) | "
+            f"Total images: {dataset_size} --"
+        )
+
+        tqdm_out = TqdmLogger(logging.getLogger(), level=logging.INFO)
+
+        for batch_number in tqdm.tqdm(
+            range(total_batch_number),
+            desc="Processing batches",
+            file=tqdm_out,
+            unit="batch",
+        ):
             offset = batch_number * batch_size
             assets = self.dataset_version.list_assets(limit=batch_size, offset=offset)
 
@@ -81,14 +97,21 @@ class PreAnnotator:
                     image_data=image_data
                 )
 
-                if (
-                    len(asset.list_annotations()) == 0
-                    and yolox_inference_result
-                    and len(yolox_inference_result.boxes) > 0
-                ):
+                if len(asset.list_annotations()) > 0:
+                    logging.warning(
+                        f"Asset {asset.filename} is already annotated. Skipping."
+                    )
+                    continue
+
+                if yolox_inference_result and len(yolox_inference_result.boxes) > 0:
                     if self.dataset_version.type == InferenceType.OBJECT_DETECTION:
                         self._format_and_save_rectangles(
                             asset, yolox_inference_result, confidence_threshold
+                        )
+                    else:
+                        logging.error(
+                            f"The dataset version's type {self.dataset_version.type} is not handled yet "
+                            f"by this processing."
                         )
 
     def _convert_picsellia_asset_to_numpy(self, asset: Asset) -> np.ndarray:
@@ -125,10 +148,14 @@ class PreAnnotator:
         scores = yolox_inference_result.scores
         labels = yolox_inference_result.labels
 
+        annotation_indexes = defaultdict(int)
+
         rectangles_to_save = []
         num_boxes = min(len(boxes), 100)
 
         annotation = asset.create_annotation(duration=0.0)
+        logging.info(f"\nProcessing asset '{asset.filename}':")
+        logging_lines = []
 
         for i in range(num_boxes):
             if scores[i] < confidence_threshold:
@@ -145,16 +172,24 @@ class PreAnnotator:
                     label,
                 ]
                 rectangles_to_save.append(tuple(rectangle))
+                annotation_indexes[label_name] += 1
+
+                logging_lines.append(
+                    f"Found {label.name} #{annotation_indexes[label_name]}"
+                    f" | score: {scores[i]}"
+                    f" | coordinates: {rectangle[0:4]}"
+                )
 
             except ResourceNotFoundError as e:
-                logging.error(f"Label not found: {e}")
                 continue
 
         if annotation and rectangles_to_save:
             annotation.create_multiple_rectangles(rectangles_to_save)
-            logging.info(
+            logging_lines.append(
                 f"Asset '{asset.filename}' pre-annotated with {len(rectangles_to_save)} rectangles."
             )
+
+        logging.info("\n".join(logging_lines))
 
     def _model_sanity_check(self) -> None:
         """
@@ -235,13 +270,28 @@ class PreAnnotator:
             label.name for label in self.dataset_version.list_labels()
         ]
 
-        overlapping_labels = set(self.model_labels).intersection(self.dataset_labels)
+        model_labels_set = set(self.model_labels)
+        dataset_labels_set = set(self.dataset_labels)
+
+        overlapping_labels = model_labels_set.intersection(dataset_labels_set)
+        non_overlapping_dataset_labels = dataset_labels_set - model_labels_set
+
         if not overlapping_labels:
             raise PicselliaError(
-                "No overlapping labels found between model and dataset."
+                "No overlapping labels found between model and dataset. "
+                "Please check the labels between your dataset version and your model.\n"
+                f"Dataset labels: {self.dataset_labels}\n"
+                f"Model labels: {self.model_labels}"
             )
 
-        logging.info(f"Overlapping labels: {list(overlapping_labels)}")
+        # Log the overlapping labels
+        logging.info(f"Using labels: {list(overlapping_labels)}")
+
+        if non_overlapping_dataset_labels:
+            logging.info(
+                f"WARNING: Some dataset version's labels are not present in model "
+                f"and will be skipped: {list(non_overlapping_dataset_labels)}"
+            )
 
     def _download_model_weights(self) -> None:
         """
@@ -250,7 +300,7 @@ class PreAnnotator:
         model_weights = self.model_version.get_file("model-latest")
         model_weights.download()
         self.model_weights_path = os.path.join(os.getcwd(), model_weights.filename)
-        logging.info(f"Model weights downloaded to {self.model_weights_path}")
+        logging.info(f"Model weights {model_weights.filename} downloaded successfully")
 
     def _load_model(self) -> None:
         """
@@ -315,6 +365,9 @@ class PreAnnotator:
         Returns:
             tuple[np.ndarray, float]: Padded image and the resize ratio.
         """
+
+        image_data = self.convert_to_rgb(image_data=image_data)
+
         padded_img = np.ones((input_size[0], input_size[1], 3), dtype=np.uint8) * 114
         image_ratio = min(
             input_size[0] / image_data.shape[0], input_size[1] / image_data.shape[1]
@@ -325,6 +378,26 @@ class PreAnnotator:
             : int(image_data.shape[1] * image_ratio),
         ] = resized_image
         return padded_img, image_ratio
+
+    def convert_to_rgb(self, image_data: np.ndarray) -> np.ndarray:
+        """
+        Convert an image to RGB format if it's not already in RGB.
+
+        Args:
+            image_data (np.ndarray): The original image data. Can be in various formats including RGBA and CMYK.
+
+        Returns:
+            np.ndarray: The image data converted to RGB format.
+        """
+        image = Image.fromarray(image_data)
+
+        if image.mode != "RGB":
+            image = image.convert("RGB")
+
+        image_data = np.array(image)
+        image.close()
+
+        return image_data
 
     def _resize_image(self, img: np.ndarray, ratio: float) -> np.ndarray:
         """

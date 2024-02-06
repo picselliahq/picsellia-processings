@@ -1,6 +1,10 @@
+import logging
+
 from picsellia import Client
 from utils.yolox.annotator import PreAnnotator
 import os
+
+logging.getLogger().setLevel(logging.INFO)
 
 api_token = os.environ["api_token"]
 
@@ -23,7 +27,8 @@ context = job.sync()["dataset_version_processing_job"]
 model_version_id = context["model_version_id"]
 dataset_version_id = context["input_dataset_version_id"]
 
-parameters = context["parameters"]
+
+parameters = {"batch_size": 8}  # context["parameters"]
 confidence_threshold = parameters.get("confidence_threshold", 0.1)
 
 
@@ -35,3 +40,5 @@ X = PreAnnotator(
 )
 X.setup_pre_annotation_job()
 X.pre_annotate(confidence_threshold)
+
+logging.info(f"Pre-annotation done!")

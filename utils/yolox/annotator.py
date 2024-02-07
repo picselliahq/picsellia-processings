@@ -184,6 +184,10 @@ class PreAnnotator:
             logging_lines.append(
                 f"Asset '{asset.filename}' pre-annotated with {len(rectangles_to_save)} rectangles."
             )
+        else:
+            logging_lines.append(
+                f"No object has been found for asset '{asset.filename}'."
+            )
 
         logging.info("\n".join(logging_lines))
 

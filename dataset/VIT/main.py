@@ -36,4 +36,4 @@ X = PreAnnotator(
     parameters=parameters
 )
 X.setup_preannotation_job()
-X.preannotate(confidence_threshold)
+X.preannotate()

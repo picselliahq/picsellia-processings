@@ -16,7 +16,8 @@ ARG REBUILD_ALL
 RUN python3.10 -m pip install scipy
 RUN python3.10 -m pip install Pillow
 RUN python3.10 -m pip install numpy
-RUN python3.10 -m pip install onnx-runtime
+RUN python3.10 -m pip install onnx
+RUN python3.10 -m pip install onnxruntime
 
 
 ARG REBUILD_PICSELLIA
@@ -28,3 +29,4 @@ CMD ["/picsellia/launch_processing.py"]
 ENTRYPOINT ["python3.10"]
 COPY . .
 RUN chown -R 42420:42420 /picsellia
+

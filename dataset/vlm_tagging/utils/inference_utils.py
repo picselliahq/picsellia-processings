@@ -111,7 +111,7 @@ def get_conversation(architecture="minigpt4"):
 
 
 def resize_image(image_path, size):
-    image = Image.open(image_path)
+    image = Image.open(image_path).convert("RGB")
     resized_image = image.resize((size, size))
     return resized_image
 

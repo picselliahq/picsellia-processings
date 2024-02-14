@@ -1,0 +1,20 @@
+FROM picsellia/cuda:11.8.0-cudnn8-ubuntu20.04-python3.9
+
+ARG REBUILD_ALL
+ARG REBUILD_PICSELLIA
+
+RUN apt-get update && apt-get install -y \
+    git && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /experiment
+
+COPY ./dataset/vlm_tagging ./
+
+RUN pip3 install -r requirements.txt
+RUN pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+RUN git clone https://github.com/Vision-CAIR/MiniGPT-4
+
+RUN mkdir -p /workspace && \
+    chmod 777 /workspace
+
+ENTRYPOINT ["run", "main.py"]

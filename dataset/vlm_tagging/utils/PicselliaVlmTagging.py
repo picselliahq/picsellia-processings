@@ -42,7 +42,7 @@ class PicselliaVlmTagging:
 
     def get_prompt(self):
         return (
-            f"[vqa] Is it " + " or ".join(list(self.picsellia_tags_name.keys())) + "?"
+            f"[vqa] Is it " + " or ".join([f'"{tag}"' for tag in self.picsellia_tags_name.keys()]) + "?" + " Analyze the image and assign the correct tag to this image."
         )
 
     def create_ds(self, created_dataset_name: str):

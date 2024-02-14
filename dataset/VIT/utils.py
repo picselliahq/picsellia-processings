@@ -149,7 +149,6 @@ class PreAnnotator:
     def interpret_output(self, outputs):
         outputs = softmax(outputs)
         # This will vary depending on your model's output
-        print(outputs[0])
         class_index = np.argmax(outputs[0])
         return class_index
 
@@ -170,7 +169,7 @@ class PreAnnotator:
         annotation: Annotation = asset.create_annotation(duration=0.0)
         class_name = self.model_labels_name[class_index]
         label: Label = self.dataset_object.get_label(name=class_name)
-        print("Label name: ", label.name)
+        print("Predicted class: ", label.name)
         annotation.create_classification(label)
         logging.info(f"Asset: {asset.filename} pre-annotated.")
 

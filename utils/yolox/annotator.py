@@ -40,6 +40,9 @@ class PreAnnotator:
         self.dataset_labels = []
         self.model_info = {}
 
+        self.model_version_id = model_version_id
+        self.dataset_version_id = dataset_version_id
+
     def setup_pre_annotation_job(self):
         """
         Set up the pre-annotation job by performing various checks and preparing the model.
@@ -157,7 +160,7 @@ class PreAnnotator:
             if scores[i] < confidence_threshold:
                 continue
             try:
-                label_name = self.model_labels[int(labels[i])]                                                    
+                label_name = self.model_labels[int(labels[i])]
                 label = self.dataset_version.get_label(name=label_name)
                 x_min, y_min, x_max, y_max = boxes[i]
                 rectangle = [
@@ -286,7 +289,8 @@ class PreAnnotator:
 
         # Log the overlapping labels
         logging.info(f"Using labels: {list(overlapping_labels)}")
-
+        logging.info(f"Model version_id: {self.model_version_id}")
+        logging.info(f"Dataset version_id: {self.dataset_version_id}")
         if non_overlapping_dataset_labels:
             logging.info(
                 f"WARNING: Some dataset version's labels are not present in model "

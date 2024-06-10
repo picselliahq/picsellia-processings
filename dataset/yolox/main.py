@@ -29,7 +29,7 @@ model_version_id = context["model_version_id"]
 dataset_version_id = context["input_dataset_version_id"]
 
 
-parameters = {"batch_size": 8}  # context["parameters"]
+parameters = context["parameters"]
 confidence_threshold = parameters.get("confidence_threshold", 0.1)
 
 

@@ -20,7 +20,10 @@ command = "python3 main.py"
 
 if 'api_token' not in os.environ:
     raise RuntimeError("You must set an api_token to run this image")
-
+if "host" not in os.environ:
+    host = "https://app.picsellia.com"
+else:
+    host = os.environ["host"]
 if 'job_id' not in os.environ:
     raise RuntimeError("No job_id found in env. variables")
 
@@ -30,7 +33,8 @@ job_id = os.environ["job_id"]
 
 client = Client(
     api_token=api_token,
-    organization_id=organization_id
+    organization_id=organization_id,
+    host=host
 )
 
 job = client.get_job_by_id(job_id)

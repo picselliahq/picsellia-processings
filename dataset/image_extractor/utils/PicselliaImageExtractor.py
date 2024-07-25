@@ -36,7 +36,6 @@ class PicselliaImageExtractor(AbstractProcessor):
     def _process_images(self):
         for image_filename in os.listdir(self.dataset_version_folder):
             self._process_image(image_filename)
-
     def _process_image(self, image_filename: str):
         image_filepath = os.path.join(self.dataset_version_folder, image_filename)
         image = cv2.imread(image_filepath)

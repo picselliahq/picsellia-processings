@@ -45,7 +45,7 @@ input_dataset_version_id = context["input_dataset_version_id"]
 output_dataset_version = context["output_dataset_version_id"]
 
 parameters = context["parameters"]
-number_of_augmentations = parameters["number_of_augmentations"]
+number_of_augmentations = int(parameters["number_of_augmentations"])
 
 input_dataset_version: DatasetVersion = client.get_dataset_version_by_id(
     input_dataset_version_id
@@ -55,9 +55,9 @@ input_dataset_version.download("images")
 class_to_pixel_mapping = compute_class_to_pixel_dict(input_dataset_version)
 
 transform = A.Compose([
-    A.HorizontalFlip(p=parameters['horizontal_flip_probability']),
-    A.RandomBrightnessContrast(p=parameters['random_brightness_contrast_probability']),
-    A.GaussNoise(p=parameters['gauss_noise_probability']),
+    A.HorizontalFlip(p=float(parameters['horizontal_flip_probability'])),
+    A.RandomBrightnessContrast(p=float(parameters['random_brightness_contrast_probability'])),
+    A.GaussNoise(p=float(parameters['gauss_noise_probability'])),
 ])
 
 root_directory = os.getcwd()

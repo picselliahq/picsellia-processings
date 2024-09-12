@@ -9,3 +9,6 @@ docker push picsellpn/preannotation-yolov8:capture
 
 docker build -f docker/Dockerfile.mask . -t picsellpn/albumentation-segmentation:capture
 docker push picsellpn/albumentation-segmentation:capture
+
+docker build -f docker/Dockerfile.extractor . -t picsellia/image-extractor:capture
+docker push picsellia/image-extractor:capture

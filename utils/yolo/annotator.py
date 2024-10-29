@@ -17,6 +17,7 @@ import requests
 import logging
 
 
+
 class PreAnnotator:
     """ 
     
@@ -211,6 +212,15 @@ class PreAnnotator:
             annotation.create_multiple_polygons(polygons_list)
             logging.info(f"Asset: {asset.filename} pre-annotated.")
 
+    def _format_and_save_classification(self, asset: Asset, predictions: dict, confidence_threshold: float) -> None:
+        if len(self.dataset_object.list_labels()) != len(predictions.names):
+            raise ValueError("The labelmaps don't have the same length. Please verify the dataset and pre-annotation model labelmaps.")
+
+        prediction_index = np.argmax(predictions.probs).item()
+        label_name = predictions.names[prediction_index]
+        label = self.dataset_object.get_label(label_name)
+        annotation = asset.create_annotation(duration=0.0)
+        annotation.create_classification(label)
 
     def preannotate(self, confidence_threshold: float = 0.5):
         dataset_size = self.dataset_object.sync()["size"]
@@ -231,6 +241,8 @@ class PreAnnotator:
                             self._format_and_save_rectangles(asset, prediction, confidence_threshold)
                         elif self.dataset_object.type == InferenceType.SEGMENTATION:
                             self._format_and_save_polygons(asset, prediction, confidence_threshold)
+                        elif self.dataset_object.type == InferenceType.CLASSIFICATION:
+                            self._format_and_save_classification(asset, prediction, confidence_threshold)
 
                             
                     #  Fetch original annotation and shapes to overlay over predictions

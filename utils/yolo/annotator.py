@@ -234,13 +234,7 @@ class PreAnnotator:
         return labelmap[label_name]
 
     def _get_labelmap(self, dataset_version: DatasetVersion) -> Dict[str, Label]:
-        label_list = dataset_version.list_labels()
-        result = {}
-
-        for label in label_list:
-            result[label.name] = label
-
-        return result
+        return {label.name: label for label in dataset_version.list_labels()}
 
     def preannotate(self, confidence_threshold: float = 0.5):
         dataset_size = self.dataset_object.sync()["size"]

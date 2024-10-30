@@ -35,6 +35,7 @@ class PreAnnotator:
         self.model_object = self.client.get_model_version_by_id(
             model_version_id
         )
+        self.label_list = self.dataset_object.list_labels()
         self.parameters = parameters
     # Coherence Checks 
 
@@ -170,7 +171,7 @@ class PreAnnotator:
         for i in range(nb_box_limit):
             if scores[i] >= confidence_treshold:
                 try:
-                    label: Label = self.dataset_object.get_label(name=prediction.names[labels[i]])
+                    label = self._get_label_by_name(label_list=self.label_list, label_name=prediction.names[labels[i]])
                     e = boxes[i].tolist()
                     box = [
                         int(e[0] * asset.width),
@@ -203,7 +204,7 @@ class PreAnnotator:
         for i in range(nb_box_limit):
             if scores[i] >= confidence_threshold:
                 try:
-                    label: Label = self.dataset_object.get_label(name=predictions.names[labels[i]])
+                    label = self._get_label_by_name(label_list=self.label_list, label_name=predictions.names[labels[i]])
                     polygons_list.append((masks[i], label))
                 except ResourceNotFoundError as e:
                     print(e)
@@ -220,22 +221,33 @@ class PreAnnotator:
 
         if predictions.probs[prediction_index] >= confidence_threshold:
             label_name = predictions.names[prediction_index]
-            label = self.dataset_object.get_label(label_name)
+            label = self._get_label_by_name(label_list=self.label_list, label_name=label_name)
             annotation = asset.create_annotation(duration=0.0)
             annotation.create_classification(label)
 
+    def _get_label_by_name(self, label_list: List[Label], label_name: str) -> Label:
+        for label in label_list:
+            if label.name == label_name:
+                return label
+
+        raise ValueError(f"The label {label_name} does not exist in the labelmap.")
+
     def preannotate(self, confidence_threshold: float = 0.5):
         dataset_size = self.dataset_object.sync()["size"]
+        
         if not "batch_size" in self.parameters:
             batch_size = 8
         else:
             batch_size = self.parameters["batch_size"]
+
         batch_size = batch_size if dataset_size > batch_size else dataset_size
         total_batch_number = self.dataset_object.sync()["size"] // batch_size
+
         for batch_number in tqdm.tqdm(range(total_batch_number)):
             assets = self.dataset_object.list_assets(limit=batch_size, offset=batch_number*batch_size)
             url_list = [asset.sync()["data"]["presigned_url"] for asset in assets]
             predictions = self.model(url_list)
+
             for asset, prediction in list(zip(assets, predictions)):
                 if len(asset.list_annotations()) == 0:
                     if len(prediction) > 0:

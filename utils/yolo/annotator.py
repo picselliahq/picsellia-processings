@@ -1,3 +1,5 @@
+from base64 import decode
+
 from picsellia import Client
 from uuid import uuid4
 from picsellia.exceptions import ResourceNotFoundError, InsufficientResourcesError, PicselliaError
@@ -7,7 +9,7 @@ from picsellia.sdk.asset import Asset
 from picsellia.sdk.dataset import DatasetVersion
 from picsellia.sdk.annotation import Annotation
 from picsellia.sdk.label import Label
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 import tqdm
 import zipfile
 import os
@@ -15,6 +17,7 @@ from PIL import Image
 import numpy as np 
 import requests
 import logging
+
 
 
 class PreAnnotator:
@@ -34,11 +37,14 @@ class PreAnnotator:
         self.model_object = self.client.get_model_version_by_id(
             model_version_id
         )
+        self.labelmap = self._get_labelmap(dataset_version=self.dataset_object)
         self.parameters = parameters
-    # Coherence Checks 
 
-    def _type_coherence_check(self) -> bool:
-        assert self.dataset_object.type == self.model_object.type, PicselliaError(f"Can't run pre-annotation job on a {self.dataset_object.type} with {self.model_object.type} model.")
+    # Coherence Checks
+
+    def _type_coherence_check(self) -> None:
+        if not self.dataset_object.type == self.model_object.type:
+            raise PicselliaError(f"Can't run pre-annotation job on a {self.dataset_object.type} with {self.model_object.type} model.")
 
     def _labels_coherence_check(self) -> bool:
         """ 
@@ -51,7 +57,7 @@ class PreAnnotator:
         logging.info(f"Pre-annotation Job will only run on classes: {list(intersecting_labels)}")
         return len(intersecting_labels) > 0
 
-    # Sanity check 
+    # Sanity check
 
     def _check_model_file_sanity(self,) -> None:
         try:
@@ -67,10 +73,8 @@ class PreAnnotator:
         self._check_model_file_sanity()
         self._check_model_type_sanity()
         logging.info(f"Model {self.model_object.name} is sane.")
-
-
     
-    # Utilities 
+    # Utilities
 
     def _is_labelmap_starting_at_zero(self,) -> bool:
         return '0' in self.model_infos["labels"].keys()
@@ -83,10 +87,13 @@ class PreAnnotator:
 
     def _get_model_labels_name(self, ) -> List[str]:
         self.model_infos = self.model_object.sync()
+
         if "labels" not in self.model_infos.keys():
             raise InsufficientResourcesError(f"Can't find labelmap for model {self.model_object.name}")
+
         if not isinstance(self.model_infos["labels"], dict):
-            raise InsufficientResourcesError(f"Invalid LabelMap type, expected 'dict', got {type(self.model_infos['labels'])}")
+            raise InsufficientResourcesError(f"Invalid labelmap type, expected 'dict', got {type(self.model_infos['labels'])}")
+
         model_labels = list(self.model_infos["labels"].values())
         return model_labels
     
@@ -114,9 +121,6 @@ class PreAnnotator:
             logging.info("Model loaded in memory.")
         except Exception as e:
             raise PicselliaError(f"Impossible to load saved model located at: {self.model_weights_path}")
-        
-
-
 
     def setup_preannotation_job(self,):
         logging.info(f"Setting up the Pre-annotation Job for dataset {self.dataset_object.name}/{self.dataset_object.version} with model {self.model_object.name}/{self.model_object.version}")
@@ -169,7 +173,7 @@ class PreAnnotator:
         for i in range(nb_box_limit):
             if scores[i] >= confidence_treshold:
                 try:
-                    label: Label = self.dataset_object.get_label(name=prediction.names[labels[i]])
+                    label = self._get_label_by_name(labelmap=self.labelmap, label_name=prediction.names[labels[i]])
                     e = boxes[i].tolist()
                     box = [
                         int(e[0] * asset.width),
@@ -202,7 +206,7 @@ class PreAnnotator:
         for i in range(nb_box_limit):
             if scores[i] >= confidence_threshold:
                 try:
-                    label: Label = self.dataset_object.get_label(name=predictions.names[labels[i]])
+                    label = self._get_label_by_name(labelmap=self.labelmap, label_name=predictions.names[labels[i]])
                     polygons_list.append((masks[i], label))
                 except ResourceNotFoundError as e:
                     print(e)
@@ -211,19 +215,43 @@ class PreAnnotator:
             annotation.create_multiple_polygons(polygons_list)
             logging.info(f"Asset: {asset.filename} pre-annotated.")
 
+    def _format_and_save_classification(self, asset: Asset, predictions: dict, confidence_threshold: float) -> None:
+        if len(self.dataset_object.list_labels()) != len(predictions.names):
+            raise ValueError("The labelmaps don't have the same length. Please verify the dataset and pre-annotation model labelmaps.")
+
+        prediction_index = np.argmax(predictions.probs).item()
+
+        if predictions.probs[prediction_index] >= confidence_threshold:
+            label_name = predictions.names[prediction_index]
+            label = self._get_label_by_name(labelmap=self.labelmap, label_name=label_name)
+            annotation = asset.create_annotation(duration=0.0)
+            annotation.create_classification(label)
+
+    def _get_label_by_name(self, labelmap: Dict[str, Label], label_name: str) -> Label:
+        if label_name not in labelmap:
+            raise ValueError(f"The label {label_name} does not exist in the labelmap.")
+
+        return labelmap[label_name]
+
+    def _get_labelmap(self, dataset_version: DatasetVersion) -> Dict[str, Label]:
+        return {label.name: label for label in dataset_version.list_labels()}
 
     def preannotate(self, confidence_threshold: float = 0.5):
         dataset_size = self.dataset_object.sync()["size"]
+
         if not "batch_size" in self.parameters:
             batch_size = 8
         else:
             batch_size = self.parameters["batch_size"]
+
         batch_size = batch_size if dataset_size > batch_size else dataset_size
         total_batch_number = self.dataset_object.sync()["size"] // batch_size
+
         for batch_number in tqdm.tqdm(range(total_batch_number)):
             assets = self.dataset_object.list_assets(limit=batch_size, offset=batch_number*batch_size)
             url_list = [asset.sync()["data"]["presigned_url"] for asset in assets]
             predictions = self.model(url_list)
+
             for asset, prediction in list(zip(assets, predictions)):
                 if len(asset.list_annotations()) == 0:
                     if len(prediction) > 0:
@@ -231,14 +259,5 @@ class PreAnnotator:
                             self._format_and_save_rectangles(asset, prediction, confidence_threshold)
                         elif self.dataset_object.type == InferenceType.SEGMENTATION:
                             self._format_and_save_polygons(asset, prediction, confidence_threshold)
-
-                            
-                    #  Fetch original annotation and shapes to overlay over predictions
-                                
-
-            
-
-            
-
-
-
+                        elif self.dataset_object.type == InferenceType.CLASSIFICATION:
+                            self._format_and_save_classification(asset, prediction, confidence_threshold)

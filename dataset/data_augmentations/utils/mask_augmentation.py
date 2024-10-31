@@ -6,8 +6,9 @@ from picsellia import DatasetVersion
 from picsellia.types.enums import InferenceType
 
 
-def convert_seperated_multiclass_masks_to_polygons(data_directory: str,
-                                                   dataset_version: DatasetVersion):
+def convert_seperated_multiclass_masks_to_polygons(
+    data_directory: str, dataset_version: DatasetVersion
+):
     """
 
     Args:
@@ -28,7 +29,9 @@ def convert_seperated_multiclass_masks_to_polygons(data_directory: str,
         for l in labels:
             im = cv2.imread(os.path.join(mask_root_directory, l, fname))
             im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
-            contours, _ = cv2.findContours(im, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            contours, _ = cv2.findContours(
+                im, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+            )
             for c in contours:
                 if len(c) > 3:
                     to_add = (
@@ -39,7 +42,9 @@ def convert_seperated_multiclass_masks_to_polygons(data_directory: str,
                         )
                         .tolist()
                     )
-                    polygons.append((to_add, dataset_version.get_or_create_label(name=l)))
+                    polygons.append(
+                        (to_add, dataset_version.get_or_create_label(name=l))
+                    )
         if len(polygons) > 0:
             try:
                 annotation = asset.create_annotation(duration=0)
@@ -65,11 +70,21 @@ def prepare_mask_directories_for_multilabel(class_to_pixel_mapping, mask_directo
         os.makedirs(label_directory, exist_ok=True)  # create one directory per label
 
         for image_file in tqdm.tqdm(os.listdir(mask_directory)):
-            image = cv2.imread(os.path.join(mask_directory, image_file), cv2.IMREAD_GRAYSCALE)
+            image = cv2.imread(
+                os.path.join(mask_directory, image_file), cv2.IMREAD_GRAYSCALE
+            )
 
             pixel_value = int(class_to_pixel_mapping[key])
-            masks = np.where(np.logical_and(image <= (pixel_value + margin), image >= (pixel_value - margin)), 1, 0)
-            new_mask_path = os.path.join(label_directory, image_file.split('.')[0] + '.jpg')
+            masks = np.where(
+                np.logical_and(
+                    image <= (pixel_value + margin), image >= (pixel_value - margin)
+                ),
+                1,
+                0,
+            )
+            new_mask_path = os.path.join(
+                label_directory, image_file.split(".")[0] + ".jpg"
+            )
             cv2.imwrite(new_mask_path, masks)  # save mask
 
 
@@ -94,6 +109,7 @@ def compute_class_to_pixel_dict(dataset_version: DatasetVersion):
     class_to_pixel_dict = {label_names[0]: pixel_diff}
 
     for l in range(1, len_labels):
-        class_to_pixel_dict[label_names[l]] = class_to_pixel_dict[label_names[l-1]] + pixel_diff
+        class_to_pixel_dict[label_names[l]] = (
+            class_to_pixel_dict[label_names[l - 1]] + pixel_diff
+        )
     return class_to_pixel_dict
-

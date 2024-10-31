@@ -1,6 +1,10 @@
 from picsellia import Client
 from uuid import uuid4
-from picsellia.exceptions import ResourceNotFoundError, InsufficientResourcesError, PicselliaError
+from picsellia.exceptions import (
+    ResourceNotFoundError,
+    InsufficientResourcesError,
+    PicselliaError,
+)
 from picsellia.types.enums import InferenceType
 from picsellia.sdk.model import ModelVersion
 from picsellia.sdk.asset import Asset
@@ -12,26 +16,25 @@ import tqdm
 import zipfile
 import os
 from PIL import Image
-import numpy as np 
+import numpy as np
 import requests
 import logging
 
 
 class Evaluator:
-    """ 
-    
-    """
-    def __init__(self, 
-            client: Client,
-            dataset_version_id: uuid4,
-            model_version_id: uuid4,
-            experiment_id: uuid4,
-            parameters: dict=dict()) -> None:
-                
+    """ """
+
+    def __init__(
+        self,
+        client: Client,
+        dataset_version_id: uuid4,
+        model_version_id: uuid4,
+        experiment_id: uuid4,
+        parameters: dict = dict(),
+    ) -> None:
+
         self.client = client
-        self.experiment = self.client.get_experiment_by_id(
-            experiment_id
-        )
+        self.experiment = self.client.get_experiment_by_id(experiment_id)
         self.dataset_object: DatasetVersion = self.client.get_dataset_version_by_id(
             dataset_version_id
         )
@@ -39,107 +42,154 @@ class Evaluator:
             model_version_id
         )
         self.parameters = parameters
-    # Coherence Checks 
+
+    # Coherence Checks
 
     def _type_coherence_check(self) -> bool:
-        assert self.dataset_object.type == self.model_object.type, PicselliaError(f"Can't run pre-annotation job on a {self.dataset_object.type} with {self.model_object.type} model.")
+        assert self.dataset_object.type == self.model_object.type, PicselliaError(
+            f"Can't run pre-annotation job on a {self.dataset_object.type} with {self.model_object.type} model."
+        )
 
     def _labels_coherence_check(self) -> bool:
-        """ 
+        """
         Assert that at least one label from the model labelmap is contained in the dataset version.
         """
         self.model_labels_name = self._get_model_labels_name()
-        self.dataset_labels_name = [label.name for label in self.dataset_object.list_labels()]
+        self.dataset_labels_name = [
+            label.name for label in self.dataset_object.list_labels()
+        ]
 
-        intersecting_labels = set(self.model_labels_name).intersection(self.dataset_labels_name)
-        logging.info(f"Pre-annotation Job will only run on classes: {list(intersecting_labels)}")
+        intersecting_labels = set(self.model_labels_name).intersection(
+            self.dataset_labels_name
+        )
+        logging.info(
+            f"Pre-annotation Job will only run on classes: {list(intersecting_labels)}"
+        )
         return len(intersecting_labels) > 0
 
-    # Sanity check 
+    # Sanity check
 
-    def _check_model_file_sanity(self,) -> None:
+    def _check_model_file_sanity(
+        self,
+    ) -> None:
         try:
-            self.model_object.get_file('model-latest')
+            self.model_object.get_file("model-latest")
         except ResourceNotFoundError as e:
-            raise ResourceNotFoundError(f"Can't run a pre-annotation job with this model, expected a 'model-latest' file")
-        
-    def _check_model_type_sanity(self, ) -> None:
+            raise ResourceNotFoundError(
+                f"Can't run a pre-annotation job with this model, expected a 'model-latest' file"
+            )
+
+    def _check_model_type_sanity(
+        self,
+    ) -> None:
         if self.model_object.type == InferenceType.NOT_CONFIGURED:
-            raise PicselliaError(f"Can't run pre-annotation job, {self.model_object.name} type not configured.")
-        
-    def model_sanity_check(self,) -> None:
+            raise PicselliaError(
+                f"Can't run pre-annotation job, {self.model_object.name} type not configured."
+            )
+
+    def model_sanity_check(
+        self,
+    ) -> None:
         self._check_model_file_sanity()
         self._check_model_type_sanity()
         logging.info(f"Model {self.model_object.name} is sane.")
 
+    # Utilities
 
-    
-    # Utilities 
+    def _is_labelmap_starting_at_zero(
+        self,
+    ) -> bool:
+        return "0" in self.model_infos["labels"].keys()
 
-    def _is_labelmap_starting_at_zero(self,) -> bool:
-        return '0' in self.model_infos["labels"].keys()
-    
-    def _set_dataset_version_type(self, ) -> None:
-        self.dataset_object.set_type(
-            self.model_object.type
+    def _set_dataset_version_type(
+        self,
+    ) -> None:
+        self.dataset_object.set_type(self.model_object.type)
+        logging.info(
+            f"Setting dataset {self.dataset_object.name}/{self.dataset_object.version} to type {self.model_object.type}"
         )
-        logging.info(f"Setting dataset {self.dataset_object.name}/{self.dataset_object.version} to type {self.model_object.type}")
 
-    def _get_model_labels_name(self, ) -> List[str]:
+    def _get_model_labels_name(
+        self,
+    ) -> List[str]:
         self.model_infos = self.model_object.sync()
         if "labels" not in self.model_infos.keys():
-            raise InsufficientResourcesError(f"Can't find labelmap for model {self.model_object.name}")
+            raise InsufficientResourcesError(
+                f"Can't find labelmap for model {self.model_object.name}"
+            )
         if not isinstance(self.model_infos["labels"], dict):
-            raise InsufficientResourcesError(f"Invalid LabelMap type, expected 'dict', got {type(self.model_infos['labels'])}")
+            raise InsufficientResourcesError(
+                f"Invalid LabelMap type, expected 'dict', got {type(self.model_infos['labels'])}"
+            )
         model_labels = list(self.model_infos["labels"].values())
         return model_labels
-    
-    def _create_labels(self, ) -> None:
-        if not hasattr(self, 'model_labels_name'):
+
+    def _create_labels(
+        self,
+    ) -> None:
+        if not hasattr(self, "model_labels_name"):
             self.model_labels_name = self._get_model_labels_name()
         for label in tqdm.tqdm(self.model_labels_name):
-            self.dataset_object.create_label(
-                name=label
-            )
-        self.dataset_labels_name = [label.name for label in self.dataset_object.list_labels()]
+            self.dataset_object.create_label(name=label)
+        self.dataset_labels_name = [
+            label.name for label in self.dataset_object.list_labels()
+        ]
         logging.info(f"Labels :{self.dataset_labels_name} created.")
 
-    def _download_model_weights(self,):
-        model_weights = self.model_object.get_file('checkpoint-index-latest')
-        model_weights.download()        
+    def _download_model_weights(
+        self,
+    ):
+        model_weights = self.model_object.get_file("checkpoint-index-latest")
+        model_weights.download()
         cwd = os.getcwd()
-        self.model_weights_path = os.path.join(cwd,model_weights.filename)
-        logging.info(f"{self.model_object.name}/{self.model_object.version} weights downloaded.")
+        self.model_weights_path = os.path.join(cwd, model_weights.filename)
+        logging.info(
+            f"{self.model_object.name}/{self.model_object.version} weights downloaded."
+        )
 
-    def _load_yolov8_model(self,):
+    def _load_yolov8_model(
+        self,
+    ):
         try:
             from ultralytics import YOLO
+
             self.model = YOLO(self.model_weights_path)
             logging.info("Model loaded in memory.")
         except Exception as e:
-            raise PicselliaError(f"Impossible to load saved model located at: {self.model_weights_path}")
-        
+            raise PicselliaError(
+                f"Impossible to load saved model located at: {self.model_weights_path}"
+            )
 
-    def _dataset_inclusion_check(self,) -> None:
-        """ 
-        Check if the selected dataset is included into the given experiment, 
+    def _dataset_inclusion_check(
+        self,
+    ) -> None:
+        """
+        Check if the selected dataset is included into the given experiment,
 
         If the dataset isn't in the experiment, we'll add it under the name "eval".
         """
 
         attached_datasets = self.experiment.list_attached_dataset_versions()
-        inclusion = False 
+        inclusion = False
         for dataset_version in attached_datasets:
             if dataset_version.id == self.dataset_object.id:
                 inclusion = True
-        
+
         if not inclusion:
-            self.experiment.attach_dataset(name="eval", dataset_version=self.dataset_object)
-            logging.info(f"{self.dataset_object.name}/{self.dataset_object.version} attached to the experiment.")
+            self.experiment.attach_dataset(
+                name="eval", dataset_version=self.dataset_object
+            )
+            logging.info(
+                f"{self.dataset_object.name}/{self.dataset_object.version} attached to the experiment."
+            )
         return
 
-    def setup_preannotation_job(self,):
-        logging.info(f"Setting up the Pre-annotation Job for dataset {self.dataset_object.name}/{self.dataset_object.version} with model {self.model_object.name}/{self.model_object.version}")
+    def setup_preannotation_job(
+        self,
+    ):
+        logging.info(
+            f"Setting up the Pre-annotation Job for dataset {self.dataset_object.name}/{self.dataset_object.version} with model {self.model_object.name}/{self.model_object.version}"
+        )
         self.model_sanity_check()
         self._dataset_inclusion_check()
         if self.dataset_object.type == InferenceType.NOT_CONFIGURED:
@@ -148,12 +198,12 @@ class Evaluator:
         else:
             self._type_coherence_check()
             self._labels_coherence_check()
-        self.labels_to_detect = list(set(self.model_labels_name).intersection(self.dataset_labels_name))
+        self.labels_to_detect = list(
+            set(self.model_labels_name).intersection(self.dataset_labels_name)
+        )
         self._download_model_weights()
         self._load_yolov8_model()
 
-
-    
     # def _format_picsellia_polygons(self, width: int, height: int, predictions: np.array) -> Tuple[List, List, List, List]:
     #     formatter = TensorflowFormatter(width, height)
     #     formated_output = formatter.format_segmentation(predictions)
@@ -162,13 +212,14 @@ class Evaluator:
     #     classes = formated_output["detection_classes"]
     #     masks = formated_output["detection_masks"]
     #     return (scores, masks, boxes, classes)
-    
-    def _format_and_save_rectangles(self, asset: Asset, prediction: List, confidence_treshold: float = 0.4) -> None:
+
+    def _format_and_save_rectangles(
+        self, asset: Asset, prediction: List, confidence_treshold: float = 0.4
+    ) -> None:
         boxes = prediction.boxes.xyxyn.cpu().numpy()
         scores = prediction.boxes.conf.cpu().numpy()
         labels = prediction.boxes.cls.cpu().numpy().astype(np.int16)
         #  Convert predictions to Picsellia format
-
 
         rectangle_list = []
         nb_box_limit = 100
@@ -181,7 +232,9 @@ class Evaluator:
         for i in range(nb_box_limit):
             if scores[i] >= self.parameters.get("confidence_threshold", 0.4):
                 try:
-                    label: Label = self.dataset_object.get_label(name=prediction.names[labels[i]])
+                    label: Label = self.dataset_object.get_label(
+                        name=prediction.names[labels[i]]
+                    )
                     e = boxes[i].tolist()
                     box = [
                         int(e[0] * asset.width),
@@ -198,7 +251,6 @@ class Evaluator:
         if len(rectangle_list) > 0:
             self.experiment.add_evaluation(asset=asset, rectangles=rectangle_list)
             logging.info(f"Asset: {asset.filename} evaluated.")
-
 
     # def _format_and_save_polygons(self, asset: Asset, predictions: dict, confidence_treshold: float) -> None:
     #     scores, masks, _, classes = self._format_picsellia_polygons(
@@ -230,7 +282,6 @@ class Evaluator:
     #         annotation.create_multiple_polygons(polygons_list)
     #         logging.info(f"Asset: {asset.filename} pre-annotated.")
 
-
     def preannotate(self, confidence_treshold: float = 0.5):
         dataset_size = self.dataset_object.sync()["size"]
         if not "batch_size" in self.parameters:
@@ -240,7 +291,9 @@ class Evaluator:
         batch_size = batch_size if dataset_size > batch_size else dataset_size
         total_batch_number = self.dataset_object.sync()["size"] // batch_size
         for batch_number in tqdm.tqdm(range(total_batch_number)):
-            assets = self.dataset_object.list_assets(limit=batch_size, offset=batch_number*batch_size)
+            assets = self.dataset_object.list_assets(
+                limit=batch_size, offset=batch_number * batch_size
+            )
             url_list = [asset.sync()["data"]["presigned_url"] for asset in assets]
             predictions = self.model(url_list)
             for asset, prediction in list(zip(assets, predictions)):
@@ -251,13 +304,5 @@ class Evaluator:
                         # elif self.dataset_object.type == InferenceType.SEGMENTATION:
                         #     self._format_and_save_polygons(asset, predictions, confidence_treshold)
         self.experiment.run_evaluations(inference_type=self.dataset_object.type)
-                            
-                    #  Fetch original annotation and shapes to overlay over predictions
-                                
 
-            
-
-            
-
-
-
+        #  Fetch original annotation and shapes to overlay over predictions

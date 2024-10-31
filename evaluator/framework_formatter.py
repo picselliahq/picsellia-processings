@@ -3,8 +3,12 @@ from typing import List, Any
 
 from picsellia.sdk.asset import Asset
 
-from evaluator.utils import (cast_type_list_to_float, cast_type_list_to_int,
-                             convert_tensor_to_list, rescale_normalized_box)
+from evaluator.utils import (
+    cast_type_list_to_float,
+    cast_type_list_to_int,
+    convert_tensor_to_list,
+    rescale_normalized_box,
+)
 
 
 class FrameworkFormatter(ABC):

@@ -6,8 +6,7 @@ from typing import List, Type
 
 import numpy as np
 import tqdm
-from picsellia.exceptions import (InsufficientResourcesError,
-                                  ResourceNotFoundError)
+from picsellia.exceptions import InsufficientResourcesError, ResourceNotFoundError
 from picsellia.sdk.asset import Asset
 from picsellia.sdk.dataset import DatasetVersion
 from picsellia.sdk.experiment import Experiment
@@ -16,7 +15,6 @@ from picsellia.types.enums import InferenceType
 
 from evaluator.framework_formatter import FrameworkFormatter
 from evaluator.type_formatter import TypeFormatter
-
 
 
 def _labels_coherence_check(experiment_labelmap, dataset_labels) -> bool:
@@ -41,7 +39,7 @@ class AbstractEvaluator(ABC):
         experiment: Experiment,
         dataset: DatasetVersion,
         asset_list: List[Asset] = None,
-        confidence_threshold: float = 0.1
+        confidence_threshold: float = 0.1,
     ) -> None:
         self._experiment = experiment
         self._dataset = dataset
@@ -141,8 +139,13 @@ class AbstractEvaluator(ABC):
                 i * self._batch_size : (i + 1) * self._batch_size
             ]
             self._evaluate_asset_list(asset_list)
-        if self._dataset.type in [InferenceType.OBJECT_DETECTION, InferenceType.SEGMENTATION]:
-            self._experiment.compute_evaluations_metrics(inference_type=self._dataset.type)
+        if self._dataset.type in [
+            InferenceType.OBJECT_DETECTION,
+            InferenceType.SEGMENTATION,
+        ]:
+            self._experiment.compute_evaluations_metrics(
+                inference_type=self._dataset.type
+            )
 
     def _evaluate_asset_list(self, asset_list: List[Asset]) -> None:
         inputs = self._preprocess_images(asset_list)
@@ -189,6 +192,6 @@ class AbstractEvaluator(ABC):
                 f"Asset: {asset.filename} non evaluated, either because the model made no predictions \
                          or because the confidence of the predictions was too low."
             )
-            
+
     def _get_model_artifact_filename(self) -> str:
         pass

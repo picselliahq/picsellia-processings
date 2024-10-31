@@ -157,7 +157,7 @@ class PreAnnotator:
             if scores[i] < confidence_threshold:
                 continue
             try:
-                label_name = self.model_labels[int(labels[i])]                                                    
+                label_name = self.model_labels[int(labels[i])]
                 label = self.dataset_version.get_label(name=label_name)
                 x_min, y_min, x_max, y_max = boxes[i]
                 rectangle = [

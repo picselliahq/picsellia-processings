@@ -6,7 +6,7 @@ import re
 import json
 
 os.environ["PYTHONUNBUFFERED"] = "1"
-os.environ['PICSELLIA_SDK_CUSTOM_LOGGING'] = "True"
+os.environ["PICSELLIA_SDK_CUSTOM_LOGGING"] = "True"
 os.environ["PICSELLIA_SDK_DOWNLOAD_BAR_MODE"] = "2"
 os.environ["PICSELLIA_SDK_SECTION_HANDLER"] = "1"
 
@@ -14,32 +14,30 @@ from datetime import datetime
 from picsellia.types.enums import JobRunStatus
 import logging
 
-logging.getLogger('picsellia').setLevel(logging.INFO)
-os.chdir('picsellia')
+logging.getLogger("picsellia").setLevel(logging.INFO)
+os.chdir("picsellia")
 command = "python3 main.py"
 
-if 'api_token' not in os.environ:
+if "api_token" not in os.environ:
     raise RuntimeError("You must set an api_token to run this image")
 if "host" not in os.environ:
     host = "https://app.picsellia.com"
 else:
     host = os.environ["host"]
-if 'job_id' not in os.environ:
+if "job_id" not in os.environ:
     raise RuntimeError("No job_id found in env. variables")
 
 api_token = os.environ["api_token"]
 organization_id = os.environ["organization_id"]
 job_id = os.environ["job_id"]
 
-client = Client(
-    api_token=api_token,
-    organization_id=organization_id,
-    host=host
-)
+client = Client(api_token=api_token, organization_id=organization_id, host=host)
 
 job = client.get_job_by_id(job_id)
 job.update_job_run_with_status(JobRunStatus.RUNNING)
-process = subprocess.Popen(shlex.split(command), stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+process = subprocess.Popen(
+    shlex.split(command), stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+)
 part = "--#--Start processing"
 replace_log = False
 buffer = []
@@ -50,28 +48,22 @@ try:
 except Exception:
     pass
 logs = {}
-logs[part] = {
-    'datetime': str(datetime.now().isoformat()),
-    'logs': {}
-}
+logs[part] = {"datetime": str(datetime.now().isoformat()), "logs": {}}
 last_line = ""
 while True:
     output = process.stdout.readline()
-    if output.decode("utf-8") == '' and process.poll() is not None:
+    if output.decode("utf-8") == "" and process.poll() is not None:
         break
     text = output.decode("utf-8")
     if output:
-        if text.startswith('--#--'):
+        if text.startswith("--#--"):
             part = output.decode("utf-8")
-            logs[part] = {
-                'datetime': str(datetime.now().isoformat()),
-                'logs': {}
-            }
-        if text.startswith('-----'):
+            logs[part] = {"datetime": str(datetime.now().isoformat()), "logs": {}}
+        if text.startswith("-----"):
             progress_line_nb = job.line_nb
             replace_log = True
 
-        if text.startswith('--*--'):
+        if text.startswith("--*--"):
             replace_log = False
 
         if re.match("--[0-9]--", text[:6]):
@@ -81,19 +73,19 @@ while True:
         if re.match("---[0-9]---", text[:8]):
             start_buffer = False
             try:
-                job.send_logging(buffer, part, special='buffer')
-                job.line_nb += (len(buffer) - 1)
+                job.send_logging(buffer, part, special="buffer")
+                job.line_nb += len(buffer) - 1
             except Exception:
                 pass
             buffer = []
 
         if start_buffer:
             buffer.append(text)
-            logs[part]['logs'][str(job.line_nb + len(buffer))] = text
+            logs[part]["logs"][str(job.line_nb + len(buffer))] = text
             if len(buffer) == buffer_length:
                 try:
-                    job.send_logging(buffer, part, special='buffer')
-                    job.line_nb += (buffer_length - 1)
+                    job.send_logging(buffer, part, special="buffer")
+                    job.line_nb += buffer_length - 1
                 except Exception:
                     pass
                 buffer = []
@@ -101,7 +93,7 @@ while True:
             if not replace_log:
                 try:
                     job.send_logging(text, part)
-                    logs[part]['logs'][str(job.line_nb)] = text
+                    logs[part]["logs"][str(job.line_nb)] = text
                 except Exception:
                     pass
             else:
@@ -113,18 +105,18 @@ while True:
 
         last_line = text
 
-logs_path = '{}-logs.json'.format(job_id)
-with open(logs_path, 'w') as f:
+logs_path = "{}-logs.json".format(job_id)
+with open(logs_path, "w") as f:
     if buffer != []:
         for i, line in enumerate(buffer):
-            logs[part]['logs'][str(job.line_nb + i)] = line
-        job.send_logging(buffer, part, special='buffer')
+            logs[part]["logs"][str(job.line_nb + i)] = line
+        job.send_logging(buffer, part, special="buffer")
     logs["exit_code"] = {
-        'exit_code': str(process.returncode),
-        'datetime': str(datetime.now().isoformat())
+        "exit_code": str(process.returncode),
+        "datetime": str(datetime.now().isoformat()),
     }
     json.dump(logs, f)
-job.send_logging(str(process.returncode), part, special='exit_code')
+job.send_logging(str(process.returncode), part, special="exit_code")
 job.store_logging_file(logs_path)
 
 if process.returncode == 0 or process.returncode == "0":

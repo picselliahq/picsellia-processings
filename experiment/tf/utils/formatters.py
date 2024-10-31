@@ -5,7 +5,10 @@ from PIL import Image
 import cv2
 from picsellia.types.enums import InferenceType
 from tensorflow.python.ops.numpy_ops import np_config
+
 np_config.enable_numpy_behavior()
+
+
 class AbstractFormatter(ABC):
     @abstractmethod
     def format_output(self, raw_output, model_type):
@@ -40,9 +43,7 @@ class TensorflowFormatter(AbstractFormatter):
 
     def format_object_detection(self, raw_output):
         try:
-            scores = (
-                raw_output["detection_scores"].numpy()[0].astype(np.float).tolist()
-            )
+            scores = raw_output["detection_scores"].numpy()[0].astype(np.float).tolist()
             boxes = self._postprocess_boxes(
                 raw_output["detection_boxes"].numpy()[0].astype(np.float).tolist()
             )
@@ -81,16 +82,19 @@ class TensorflowFormatter(AbstractFormatter):
                 possible_choices.remove("classes")
         assert len(possible_choices) == 0
         return (boxes, scores, classes)
-    
+
     def format_segmentation(self, raw_output):
         scores = (
             raw_output["detection_scores"].numpy()[0].astype(np.float).tolist()[:10]
         )
         boxes = self._postprocess_boxes(
-                raw_output["detection_boxes"].numpy()[0].astype(np.float).tolist()
-            )
+            raw_output["detection_boxes"].numpy()[0].astype(np.float).tolist()
+        )
         masks = self._postprocess_masks(
-            detection_masks = raw_output["detection_masks"].numpy()[0].astype(np.float).tolist()[:10],
+            detection_masks=raw_output["detection_masks"]
+            .numpy()[0]
+            .astype(np.float)
+            .tolist()[:10],
             resized_detection_boxes=boxes,
             mask_threshold=0.4,
         )
@@ -108,11 +112,11 @@ class TensorflowFormatter(AbstractFormatter):
 
     def format_classification(self, raw_output):
         output_name = self.output_names[0]
-        scores = [float(max(raw_output[output_name].numpy()[0]))],
-        classes = [int(np.argmax(raw_output[output_name].numpy()[0]))],
+        scores = ([float(max(raw_output[output_name].numpy()[0]))],)
+        classes = ([int(np.argmax(raw_output[output_name].numpy()[0]))],)
 
         return (scores, classes)
-    
+
     def _postprocess_boxes(self, detection_boxes: list) -> list:
         return [
             [
@@ -139,8 +143,8 @@ class TensorflowFormatter(AbstractFormatter):
             # Get normalised bbox coordinates
             xmin, ymin, w, h = resized_detection_boxes[idx]
 
-            xmax = xmin + w 
-            ymax = ymin + h 
+            xmax = xmin + w
+            ymax = ymin + h
 
             # Define bbox height and width
             bbox_height, bbox_width = h, w
@@ -180,4 +184,3 @@ class TensorflowFormatter(AbstractFormatter):
                 pass  # No contours
 
         return list_mask
-
